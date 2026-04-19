@@ -5,10 +5,14 @@ import React, { useEffect, useRef, useState } from "react";
 const TABLE_W = 320;
 const TABLE_H = 192;
 const BALL_R = 10;
-const FRICTION = 0.985;
+const FRICTION = 0.972;
 const MIN_SPEED = 0.05;
 
-type Ball = { x: number; y: number; dx: number; dy: number; color: string; id: number; potted: boolean };
+type BallType = "solid" | "stripe" | "8" | "cue";
+type Ball = {
+  x: number; y: number; dx: number; dy: number;
+  color: string; id: number; potted: boolean; type: BallType;
+};
 
 const POCKETS = [
   { x: 12, y: 12 }, { x: TABLE_W / 2, y: 8 }, { x: TABLE_W - 12, y: 12 },
@@ -16,35 +20,142 @@ const POCKETS = [
 ];
 const POCKET_R = 14;
 
+const SOLID_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#ca8a04"];
+const STRIPE_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#ca8a04"];
+
 const startBalls = (): Ball[] => {
-  const balls: Ball[] = [{ id: 0, x: 80, y: TABLE_H / 2, dx: 0, dy: 0, color: "#ffffff", potted: false }];
-  const colors = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#a855f7", "#ec4899", "#eab308"];
-  let id = 1;
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col <= row; col++) {
-      balls.push({
-        id: id,
-        x: 220 + row * (BALL_R * 2 + 1),
-        y: TABLE_H / 2 - row * BALL_R + col * (BALL_R * 2 + 1),
-        dx: 0, dy: 0,
-        color: colors[(id - 1) % colors.length],
-        potted: false,
-      });
-      id++;
-    }
+  const balls: Ball[] = [
+    { id: 0, x: 80, y: TABLE_H / 2, dx: 0, dy: 0, color: "#ffffff", potted: false, type: "cue" },
+  ];
+  const rackOrder = [1, 9, 2, 10, 8, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15];
+  const positions: { row: number; col: number }[] = [];
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col <= row; col++) positions.push({ row, col });
+  }
+  for (let i = 0; i < Math.min(rackOrder.length, positions.length); i++) {
+    const id = rackOrder[i];
+    const { row, col } = positions[i];
+    const isSolid = id >= 1 && id <= 7;
+    const is8 = id === 8;
+    balls.push({
+      id,
+      x: 210 + row * (BALL_R * 2 + 0.5),
+      y: TABLE_H / 2 - row * BALL_R + col * (BALL_R * 2 + 0.5),
+      dx: 0, dy: 0,
+      color: is8 ? "#111827" : isSolid ? SOLID_COLORS[(id - 1) % 7] : STRIPE_COLORS[(id - 9) % 7],
+      potted: false,
+      type: is8 ? "8" : isSolid ? "solid" : "stripe",
+    });
   }
   return balls;
 };
+
+function BallView({ b, r }: { b: Ball; r: number }) {
+  const size = r * 2;
+  if (b.type === "cue") {
+    return (
+      <div
+        className="absolute rounded-full shadow"
+        style={{
+          left: b.x - r, top: b.y - r, width: size, height: size,
+          background: "radial-gradient(circle at 35% 35%, #fff 0%, #ddd 100%)",
+          border: "1px solid #bbb",
+        }}
+      />
+    );
+  }
+  if (b.type === "solid") {
+    return (
+      <div
+        className="absolute rounded-full shadow flex items-center justify-center overflow-hidden"
+        style={{
+          left: b.x - r, top: b.y - r, width: size, height: size,
+          background: b.color,
+          border: "1px solid rgba(0,0,0,0.35)",
+        }}
+      >
+        <div
+          className="rounded-full bg-white/80 flex items-center justify-center"
+          style={{ width: r * 0.9, height: r * 0.9 }}
+        >
+          <span style={{ fontSize: r * 0.52, fontWeight: 700, color: "#111", lineHeight: 1 }}>{b.id}</span>
+        </div>
+      </div>
+    );
+  }
+  if (b.type === "stripe") {
+    return (
+      <div
+        className="absolute rounded-full shadow overflow-hidden flex items-center justify-center"
+        style={{
+          left: b.x - r, top: b.y - r, width: size, height: size,
+          background: "#f8f8f8",
+          border: "1px solid rgba(0,0,0,0.25)",
+        }}
+      >
+        <div
+          className="absolute"
+          style={{
+            top: "28%", left: 0, right: 0, height: "44%",
+            background: b.color,
+          }}
+        />
+        <div
+          className="relative z-10 rounded-full bg-white/85 flex items-center justify-center"
+          style={{ width: r * 0.9, height: r * 0.9 }}
+        >
+          <span style={{ fontSize: r * 0.52, fontWeight: 700, color: "#111", lineHeight: 1 }}>{b.id}</span>
+        </div>
+      </div>
+    );
+  }
+  // 8-ball
+  return (
+    <div
+      className="absolute rounded-full shadow flex items-center justify-center overflow-hidden"
+      style={{
+        left: b.x - r, top: b.y - r, width: size, height: size,
+        background: "#111827",
+        border: "1px solid rgba(0,0,0,0.5)",
+      }}
+    >
+      <div
+        className="rounded-full bg-white/80 flex items-center justify-center"
+        style={{ width: r * 0.9, height: r * 0.9 }}
+      >
+        <span style={{ fontSize: r * 0.52, fontWeight: 700, color: "#111", lineHeight: 1 }}>8</span>
+      </div>
+    </div>
+  );
+}
 
 export default function PoolGame() {
   const [balls, setBalls] = useState<Ball[]>(startBalls);
   const [aim, setAim] = useState<{ x: number; y: number } | null>(null);
   const [power, setPower] = useState(6);
   const [shots, setShots] = useState(0);
-  const [message, setMessage] = useState("Click the table to aim, then Shoot.");
-  const ballsRef = useRef(balls);
-  ballsRef.current = balls;
+  const [message, setMessage] = useState("Your turn. Click the table to aim, then Shoot.");
+  const [currentPlayer, setCurrentPlayer] = useState<"player" | "computer">("player");
+  const [computerAim, setComputerAim] = useState<{ x: number; y: number } | null>(null);
+  const [playerType, setPlayerType] = useState<"solids" | "stripes" | null>(null);
+  const [computerType, setComputerType] = useState<"solids" | "stripes" | null>(null);
+  const [gameOver, setGameOver] = useState(false);
 
+  const ballsRef = useRef(balls);
+  const hasShotRef = useRef(false);
+  const currentPlayerRef = useRef(currentPlayer);
+  const playerTypeRef = useRef(playerType);
+  const computerTypeRef = useRef(computerType);
+  // snapshot of potted IDs before the shot fires + who shot
+  const preShotPottedRef = useRef<Set<number>>(new Set());
+  const whoShotRef = useRef<"player" | "computer">("player");
+  const awaitingResolutionRef = useRef(false);
+  ballsRef.current = balls;
+  currentPlayerRef.current = currentPlayer;
+  playerTypeRef.current = playerType;
+  computerTypeRef.current = computerType;
+
+  // Physics tick
   useEffect(() => {
     const tick = window.setInterval(() => {
       setBalls((prev) => {
@@ -53,17 +164,18 @@ export default function PoolGame() {
           if (b.potted) continue;
           b.x += b.dx;
           b.y += b.dy;
-          if (b.x < BALL_R) { b.x = BALL_R; b.dx = -b.dx * 0.9; }
-          if (b.x > TABLE_W - BALL_R) { b.x = TABLE_W - BALL_R; b.dx = -b.dx * 0.9; }
-          if (b.y < BALL_R) { b.y = BALL_R; b.dy = -b.dy * 0.9; }
-          if (b.y > TABLE_H - BALL_R) { b.y = TABLE_H - BALL_R; b.dy = -b.dy * 0.9; }
+          if (b.x < BALL_R) { b.x = BALL_R; b.dx = -b.dx * 0.88; }
+          if (b.x > TABLE_W - BALL_R) { b.x = TABLE_W - BALL_R; b.dx = -b.dx * 0.88; }
+          if (b.y < BALL_R) { b.y = BALL_R; b.dy = -b.dy * 0.88; }
+          if (b.y > TABLE_H - BALL_R) { b.y = TABLE_H - BALL_R; b.dy = -b.dy * 0.88; }
           b.dx *= FRICTION;
           b.dy *= FRICTION;
           if (Math.abs(b.dx) < MIN_SPEED) b.dx = 0;
           if (Math.abs(b.dy) < MIN_SPEED) b.dy = 0;
           for (const p of POCKETS) {
-            const d = Math.hypot(b.x - p.x, b.y - p.y);
-            if (d < POCKET_R) { b.potted = true; b.dx = 0; b.dy = 0; }
+            if (Math.hypot(b.x - p.x, b.y - p.y) < POCKET_R) {
+              b.potted = true; b.dx = 0; b.dy = 0;
+            }
           }
         }
         for (let i = 0; i < next.length; i++) {
@@ -74,15 +186,12 @@ export default function PoolGame() {
             const dist = Math.hypot(dx, dy);
             if (dist < BALL_R * 2 && dist > 0) {
               const nx = dx / dist, ny = dy / dist;
-              const overlap = BALL_R * 2 - dist;
-              a.x -= nx * overlap / 2; a.y -= ny * overlap / 2;
-              c.x += nx * overlap / 2; c.y += ny * overlap / 2;
+              const ov = BALL_R * 2 - dist;
+              a.x -= nx * ov / 2; a.y -= ny * ov / 2;
+              c.x += nx * ov / 2; c.y += ny * ov / 2;
               const kx = a.dx - c.dx, ky = a.dy - c.dy;
               const dot = kx * nx + ky * ny;
-              if (dot > 0) {
-                a.dx -= dot * nx; a.dy -= dot * ny;
-                c.dx += dot * nx; c.dy += dot * ny;
-              }
+              if (dot > 0) { a.dx -= dot * nx; a.dy -= dot * ny; c.dx += dot * nx; c.dy += dot * ny; }
             }
           }
         }
@@ -92,20 +201,148 @@ export default function PoolGame() {
     return () => window.clearInterval(tick);
   }, []);
 
+  // Assign ball types on first pocket of each type
+  useEffect(() => {
+    if (playerTypeRef.current || computerTypeRef.current) return;
+    for (const b of balls) {
+      if (!b.potted || b.type === "cue" || b.type === "8") continue;
+      const pType = b.type === "solid" ? "solids" : "stripes";
+      const cType = b.type === "solid" ? "stripes" : "solids";
+      if (currentPlayerRef.current === "player") { setPlayerType(pType); setComputerType(cType); }
+      else { setComputerType(pType); setPlayerType(cType); }
+      break;
+    }
+  }, [balls]);
+
+  // Post-shot resolution: runs after all balls stop
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!awaitingResolutionRef.current) return;
+      const moving = ballsRef.current.some((b) => !b.potted && (b.dx !== 0 || b.dy !== 0));
+      if (moving) return;
+
+      awaitingResolutionRef.current = false;
+      const shooter = whoShotRef.current;
+      const newlyPotted = ballsRef.current.filter(
+        (b) => b.potted && !preShotPottedRef.current.has(b.id)
+      );
+
+      // 8-ball sunk → instant loss for whoever sank it
+      if (newlyPotted.some((b) => b.type === "8")) {
+        setGameOver(true);
+        if (shooter === "player") {
+          setMessage("You sank the 8-ball — you lose! 💀");
+        } else {
+          setMessage("Computer sank the 8-ball — you win! 🎉");
+        }
+        return;
+      }
+
+      // Determine shooter's ball type
+      const sType = shooter === "player" ? playerTypeRef.current : computerTypeRef.current;
+      const sunkOwn = newlyPotted.some((b) => {
+        if (!sType) return b.type !== "8";
+        return b.type === (sType === "solids" ? "solid" : "stripe");
+      });
+
+      if (sunkOwn) {
+        // Bonus turn — same player goes again
+        setCurrentPlayer(shooter);
+        if (shooter === "computer") {
+          hasShotRef.current = false;
+          setMessage("Computer potted — goes again...");
+        } else {
+          setMessage("You potted — shoot again!");
+        }
+      } else {
+        // Miss or wrong ball — switch
+        const next = shooter === "player" ? "computer" : "player";
+        setCurrentPlayer(next);
+        hasShotRef.current = false;
+        setMessage(next === "player" ? "Your turn. Click to aim, then Shoot." : "Computer's turn...");
+      }
+    }, 60);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Computer AI: fires when it's the computer's turn and nothing is moving
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (gameOver) return;
+      const moving = ballsRef.current.some((b) => !b.potted && (b.dx !== 0 || b.dy !== 0));
+      if (moving) return;
+      if (currentPlayerRef.current !== "computer") return;
+      if (hasShotRef.current) return;
+      if (awaitingResolutionRef.current) return;
+      hasShotRef.current = true;
+
+      const cue = ballsRef.current.find((b) => b.id === 0);
+      if (!cue || cue.potted) {
+        setCurrentPlayer("player");
+        setMessage("Your turn.");
+        hasShotRef.current = false;
+        return;
+      }
+
+      const myType = computerTypeRef.current;
+      const candidates = ballsRef.current.filter((b) => {
+        if (b.potted || b.id === 0) return false;
+        if (!myType) return b.type !== "8";
+        return b.type === (myType === "solids" ? "solid" : "stripe");
+      });
+      const target = candidates.length > 0
+        ? candidates.reduce((best, b) =>
+            Math.hypot(b.x - cue.x, b.y - cue.y) < Math.hypot(best.x - cue.x, best.y - cue.y) ? b : best
+          )
+        : ballsRef.current.filter((b) => !b.potted && b.id !== 0)[0];
+
+      if (!target) { hasShotRef.current = false; return; }
+
+      setComputerAim({ x: target.x, y: target.y });
+      setMessage("Computer is aiming...");
+
+      setTimeout(() => {
+        const currentCue = ballsRef.current.find((b) => b.id === 0);
+        if (!currentCue || currentCue.potted) { hasShotRef.current = false; return; }
+        const dx = target.x - currentCue.x;
+        const dy = target.y - currentCue.y;
+        const d = Math.hypot(dx, dy) || 1;
+        preShotPottedRef.current = new Set(ballsRef.current.filter((b) => b.potted).map((b) => b.id));
+        whoShotRef.current = "computer";
+        awaitingResolutionRef.current = true;
+        setBalls((prev) =>
+          prev.map((b) => b.id === 0 ? { ...b, dx: (dx / d) * (5 + Math.random() * 6), dy: (dy / d) * (5 + Math.random() * 6) } : b)
+        );
+        setComputerAim(null);
+        setShots((s) => s + 1);
+        setMessage("Computer shot!");
+      }, 1400);
+    }, 60);
+    return () => window.clearInterval(id);
+  }, [gameOver]);
+
   const onTableClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (currentPlayer !== "player") return;
     const rect = e.currentTarget.getBoundingClientRect();
     setAim({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
   const shoot = () => {
+    if (gameOver) return;
+    if (currentPlayer !== "player") { setMessage("Wait — computer is thinking."); return; }
     if (!aim) { setMessage("Click the table first to aim."); return; }
     const cue = ballsRef.current.find((b) => b.id === 0);
-    if (!cue || cue.potted) { setMessage("Cue ball is not in play."); return; }
-    const moving = ballsRef.current.some((b) => !b.potted && (Math.abs(b.dx) > 0 || Math.abs(b.dy) > 0));
-    if (moving) { setMessage("Wait for balls to stop."); return; }
+    if (!cue || cue.potted) { setMessage("Cue ball not in play."); return; }
+    if (ballsRef.current.some((b) => !b.potted && (b.dx !== 0 || b.dy !== 0))) {
+      setMessage("Wait for balls to stop."); return;
+    }
+    preShotPottedRef.current = new Set(ballsRef.current.filter((b) => b.potted).map((b) => b.id));
+    whoShotRef.current = "player";
+    awaitingResolutionRef.current = true;
     const dx = aim.x - cue.x, dy = aim.y - cue.y;
     const d = Math.hypot(dx, dy) || 1;
     setBalls((prev) => prev.map((b) => b.id === 0 ? { ...b, dx: (dx / d) * power, dy: (dy / d) * power } : b));
+    setAim(null);
     setShots((s) => s + 1);
     setMessage("Shot!");
   };
@@ -114,77 +351,120 @@ export default function PoolGame() {
     setBalls(startBalls());
     setShots(0);
     setAim(null);
-    setMessage("New rack set up.");
+    setComputerAim(null);
+    setCurrentPlayer("player");
+    setPlayerType(null);
+    setComputerType(null);
+    setGameOver(false);
+    hasShotRef.current = false;
+    awaitingResolutionRef.current = false;
+    preShotPottedRef.current = new Set();
+    setMessage("Your turn. Click the table to aim, then Shoot.");
   };
 
   const potted = balls.filter((b) => b.potted && b.id !== 0).length;
+  const cue = balls.find((b) => b.id === 0);
 
   return (
     <div className="space-y-6 w-full max-w-2xl px-4">
       <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-6 shadow-2xl shadow-slate-950/20">
         <h2 className="text-2xl font-semibold text-white">8 Ball Pool</h2>
-        <p className="mt-2 text-slate-400">Click the table to aim, press Shoot to hit the cue ball. Sink balls into pockets.</p>
+        <p className="mt-2 text-slate-400">Click to aim, Shoot to fire. Solids = filled color; Stripes = colored band on white.</p>
       </div>
 
       <div
         onClick={onTableClick}
-        className="relative mx-auto cursor-crosshair rounded-[1.5rem] border-4 border-amber-900 bg-green-700 shadow-inner"
+        className="relative mx-auto cursor-crosshair rounded-[1.5rem] border-4 border-amber-900 bg-green-700 shadow-inner select-none"
         style={{ width: TABLE_W, height: TABLE_H }}
       >
         {POCKETS.map((p, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-black"
-            style={{ left: p.x - POCKET_R, top: p.y - POCKET_R, width: POCKET_R * 2, height: POCKET_R * 2 }}
-          />
+          <div key={i} className="absolute rounded-full bg-black"
+            style={{ left: p.x - POCKET_R, top: p.y - POCKET_R, width: POCKET_R * 2, height: POCKET_R * 2 }} />
         ))}
-        {balls.filter(b => !b.potted).map((b) => (
-          <div
-            key={b.id}
-            className="absolute rounded-full shadow"
-            style={{
-              left: b.x - BALL_R, top: b.y - BALL_R,
-              width: BALL_R * 2, height: BALL_R * 2,
-              background: b.color,
-              border: b.id === 0 ? "1px solid #ddd" : "1px solid rgba(0,0,0,0.3)",
-            }}
-          />
+
+        {balls.filter((b) => !b.potted).map((b) => (
+          <BallView key={b.id} b={b} r={BALL_R} />
         ))}
-        {aim && !balls.find(b => b.id === 0)?.potted && (() => {
-          const cue = balls.find(b => b.id === 0)!;
-          return (
-            <svg className="absolute inset-0 pointer-events-none" width={TABLE_W} height={TABLE_H}>
-              <line x1={cue.x} y1={cue.y} x2={aim.x} y2={aim.y} stroke="rgba(255,255,255,0.7)" strokeDasharray="3 3" />
-            </svg>
-          );
-        })()}
+
+        {/* Player aim line */}
+        {aim && cue && !cue.potted && (
+          <svg className="absolute inset-0 pointer-events-none" width={TABLE_W} height={TABLE_H}>
+            <line x1={cue.x} y1={cue.y} x2={aim.x} y2={aim.y}
+              stroke="rgba(255,255,255,0.75)" strokeWidth={1.5} strokeDasharray="4 3" />
+            <circle cx={aim.x} cy={aim.y} r={4} fill="rgba(255,255,255,0.5)" />
+          </svg>
+        )}
+
+        {/* Game over overlay */}
+        {gameOver && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-[1.25rem] bg-black/70 z-20">
+            <p className="text-center text-sm font-bold text-white px-3 leading-snug">{message}</p>
+          </div>
+        )}
+
+        {/* Computer aim — highly visible */}
+        {computerAim && cue && !cue.potted && (
+          <svg className="absolute inset-0 pointer-events-none" width={TABLE_W} height={TABLE_H}>
+            <line x1={cue.x} y1={cue.y} x2={computerAim.x} y2={computerAim.y}
+              stroke="#f87171" strokeWidth={2} strokeDasharray="5 3" />
+            {/* Pulsing target circle */}
+            <circle cx={computerAim.x} cy={computerAim.y} r={9} fill="none"
+              stroke="#f87171" strokeWidth={2} opacity={0.9} />
+            <circle cx={computerAim.x} cy={computerAim.y} r={5} fill="#f87171" opacity={0.7} />
+            <line x1={cue.x - 4} y1={cue.y} x2={cue.x + 4} y2={cue.y}
+              stroke="#f87171" strokeWidth={2} />
+            <line x1={cue.x} y1={cue.y - 4} x2={cue.x} y2={cue.y + 4}
+              stroke="#f87171" strokeWidth={2} />
+          </svg>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-slate-400 px-1">
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-full bg-amber-500 border border-black/30 flex items-center justify-center">
+            <span className="text-white font-bold" style={{ fontSize: 6 }}>1</span>
+          </div>
+          <span>Solid (1–7)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-full bg-white overflow-hidden border border-black/20 relative flex items-center justify-center">
+            <div className="absolute" style={{ top: "28%", left: 0, right: 0, height: "44%", background: "#3b82f6" }} />
+            <span className="relative z-10 font-bold" style={{ fontSize: 6, color: "#111" }}>9</span>
+          </div>
+          <span>Stripe (9–15)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-full bg-gray-900 border border-black/50 flex items-center justify-center">
+            <span className="text-white font-bold" style={{ fontSize: 6 }}>8</span>
+          </div>
+          <span>8-ball</span>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <button
-          onClick={shoot}
-          className="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
-        >
+        <button onClick={shoot}
+          className="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:opacity-40"
+          disabled={currentPlayer !== "player" || gameOver}>
           Shoot
         </button>
         <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-4 py-3 text-sm text-slate-300">
           <label className="block text-slate-400">Power: {power.toFixed(1)}</label>
-          <input
-            type="range" min={2} max={14} step={0.5}
-            value={power} onChange={(e) => setPower(+e.target.value)}
-            className="w-full"
-          />
+          <input type="range" min={2} max={14} step={0.5} value={power}
+            onChange={(e) => setPower(+e.target.value)} className="w-full" />
         </div>
-        <button
-          onClick={reset}
-          className="rounded-2xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-400"
-        >
+        <button onClick={reset}
+          className="rounded-2xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-400">
           Rack Again
         </button>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-4 py-3 text-sm text-slate-300">
-        <p>Shots: {shots} &middot; Potted: {potted}</p>
+        <p>Shots: {shots} &middot; Potted: {potted} &middot; Turn: <span className={currentPlayer === "player" ? "text-sky-400" : "text-rose-400"}>{currentPlayer === "player" ? "You" : "Computer"}</span></p>
+        <p className="mt-0.5">
+          You: <span className="text-slate-200">{playerType ?? "TBD"}</span>
+          &ensp;Computer: <span className="text-slate-200">{computerType ?? "TBD"}</span>
+        </p>
         <p className="mt-1 text-slate-400">{message}</p>
       </div>
     </div>
