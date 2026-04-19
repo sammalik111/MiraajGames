@@ -41,4 +41,32 @@ export const games = [
     creator: "Miraaj Games",
     theme: "strategy",
   },
+  {
+    id: 7,
+    title: "Space Invaders",
+    description: "Defend Earth from alien invaders in this classic arcade shooter.",
+    creator: "Retro Arcade",
+    theme: "shooter",
+  },
+  {
+    id: 8,
+    title: "Pac-Man",
+    description: "Navigate mazes, eat dots, and avoid ghosts in this iconic maze game.",
+    creator: "Namco Classics",
+    theme: "arcade",
+  },
+  {
+    id: 9,
+    title: "Tetris",
+    description: "Arrange falling blocks to clear lines in this timeless puzzle game.",
+    creator: "Puzzle Masters",
+    theme: "puzzle",
+  },
+  {
+    id: 10,
+    title: "Crossword Puzzle",
+    description: "Solve word puzzles and expand your vocabulary with themed crosswords.",
+    creator: "Word Games Inc",
+    theme: "puzzle",
+  },
 ];

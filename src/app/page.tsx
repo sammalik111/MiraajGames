@@ -45,7 +45,7 @@ export default function Home() {
                   <h2 className="text-3xl font-bold">Mario Platformer</h2>
                 </div>
                 <div className="rounded-2xl bg-slate-800 px-4 py-2 text-sm text-slate-300">
-                  5 games
+                  10 games
                 </div>
               </div>
               <div className="grid gap-4 rounded-3xl border border-slate-800 bg-gradient-to-br from-violet-950/90 to-slate-900/80 p-6 text-slate-300">

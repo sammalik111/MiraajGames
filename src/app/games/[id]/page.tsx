@@ -6,6 +6,10 @@ import PlatformerGame from "@/components/games/PlatformerGame";
 import PoolGame from "@/components/games/PoolGame";
 import ShooterGame from "@/components/games/ShooterGame";
 import ChessGame from "@/components/games/ChessGame";
+import SpaceInvadersGame from "@/components/games/SpaceInvadersGame";
+import PacmanGame from "@/components/games/PacmanGame";
+import TetrisGame from "@/components/games/TetrisGame";
+import CrosswordGame from "@/components/games/CrosswordGame";
 import Link from "next/link";
 
 export function generateStaticParams() {
@@ -52,6 +56,14 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         return <TicTacToe />;
       case 6:
         return <MemoryGame />;
+      case 7:
+        return <SpaceInvadersGame />;
+      case 8:
+        return <PacmanGame />;
+      case 9:
+        return <TetrisGame />;
+      case 10:
+        return <CrosswordGame />;
       default:
         return <div className="text-center text-slate-400">Game coming soon...</div>;
     }

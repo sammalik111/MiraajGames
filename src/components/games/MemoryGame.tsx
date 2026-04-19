@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
-const EMOJIS = ["🎮", "🎯", "🎲", "🎪", "🎨", "🎭"];
+const EMOJIS = ["🎮", "🎯", "🎲", "🎪", "🎨", "🎭", "🎸", "🎺"];
 
 interface Card {
   id: number;
   emoji: string;
-  isFlipped: boolean;
-  isMatched: boolean;
 }
 
 export default function MemoryGame() {
@@ -16,43 +14,47 @@ export default function MemoryGame() {
   const [flipped, setFlipped] = useState<number[]>([]);
   const [matched, setMatched] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
+  const [locked, setLocked] = useState(false);
+
+  const initializeGame = () => {
+    const shuffled = [...EMOJIS, ...EMOJIS]
+      .sort(() => Math.random() - 0.5)
+      .map((emoji, index) => ({ id: index, emoji }));
+    setCards(shuffled);
+    setFlipped([]);
+    setMatched([]);
+    setMoves(0);
+    setLocked(false);
+  };
 
   useEffect(() => {
     initializeGame();
   }, []);
 
-  const initializeGame = () => {
-    const shuffled = [...EMOJIS, ...EMOJIS]
-      .sort(() => Math.random() - 0.5)
-      .map((emoji, index) => ({
-        id: index,
-        emoji,
-        isFlipped: false,
-        isMatched: false,
-      }));
-    setCards(shuffled);
-    setFlipped([]);
-    setMatched([]);
-    setMoves(0);
-  };
+  useEffect(() => {
+    if (flipped.length !== 2) return;
+    const [a, b] = flipped;
+    setLocked(true);
+    setMoves((m) => m + 1);
+
+    if (cards[a].emoji === cards[b].emoji) {
+      setMatched((prev) => [...prev, a, b]);
+      setFlipped([]);
+      setLocked(false);
+    } else {
+      const timer = window.setTimeout(() => {
+        setFlipped([]);
+        setLocked(false);
+      }, 900);
+      return () => window.clearTimeout(timer);
+    }
+  }, [flipped, cards]);
 
   const handleCardClick = (id: number) => {
+    if (locked) return;
     if (flipped.includes(id) || matched.includes(id)) return;
-
-    const newFlipped = [...flipped, id];
-    setFlipped(newFlipped);
-
-    if (newFlipped.length === 2) {
-      setMoves(moves + 1);
-      const [first, second] = newFlipped;
-
-      if (cards[first].emoji === cards[second].emoji) {
-        setMatched([...matched, first, second]);
-        setFlipped([]);
-      } else {
-        setTimeout(() => setFlipped([]), 1000);
-      }
-    }
+    if (flipped.length >= 2) return;
+    setFlipped((prev) => [...prev, id]);
   };
 
   const isGameWon = matched.length === cards.length && cards.length > 0;
@@ -72,21 +74,25 @@ export default function MemoryGame() {
       )}
 
       <div className="grid grid-cols-4 gap-3">
-        {cards.map((card) => (
-          <button
-            key={card.id}
-            onClick={() => handleCardClick(card.id)}
-            className={`w-16 h-16 text-3xl font-bold rounded-lg transition-all duration-300 ${
-              flipped.includes(card.id) || matched.includes(card.id)
-                ? "bg-blue-500 dark:bg-blue-600"
-                : "bg-zinc-300 dark:bg-zinc-700 hover:bg-zinc-400 dark:hover:bg-zinc-600"
-            }`}
-          >
-            {flipped.includes(card.id) || matched.includes(card.id)
-              ? card.emoji
-              : "?"}
-          </button>
-        ))}
+        {cards.map((card) => {
+          const revealed = flipped.includes(card.id) || matched.includes(card.id);
+          return (
+            <button
+              key={card.id}
+              onClick={() => handleCardClick(card.id)}
+              disabled={revealed || locked}
+              className={`w-16 h-16 text-3xl font-bold rounded-lg transition-all duration-300 ${
+                revealed
+                  ? matched.includes(card.id)
+                    ? "bg-green-500 dark:bg-green-600"
+                    : "bg-blue-500 dark:bg-blue-600"
+                  : "bg-zinc-300 dark:bg-zinc-700 hover:bg-zinc-400 dark:hover:bg-zinc-600"
+              }`}
+            >
+              {revealed ? card.emoji : "?"}
+            </button>
+          );
+        })}
       </div>
 
       <button

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
@@ -20,6 +20,7 @@ const themeStyles: Record<string, string> = {
   chess: "from-slate-600 via-slate-500 to-slate-400",
   puzzle: "from-fuchsia-500 via-violet-500 to-indigo-500",
   strategy: "from-blue-500 via-indigo-500 to-purple-500",
+  arcade: "from-red-500 via-pink-500 to-rose-500",
 };
 
 export default function GameCard({
@@ -31,12 +32,24 @@ export default function GameCard({
 }: GameCardProps) {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
+  const [favoriteIds, setFavoriteIds] = useState<number[]>(() =>
+    Array.isArray((user as any)?.favorites)
+      ? [...((user as any).favorites as number[])]
+      : []
+  );
   const [isFavoriting, setIsFavoriting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const favoriteIds = Array.isArray((user as any)?.favorites)
+  const sessionFavorites = Array.isArray((user as any)?.favorites)
     ? ((user as any).favorites as number[])
     : [];
+
+  useEffect(() => {
+    if (sessionFavorites.length > 0) {
+      setFavoriteIds([...sessionFavorites]);
+    }
+  }, [sessionFavorites]);
+
   const isFavorited = favoriteIds.includes(id);
 
   const handleFavorite = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -64,6 +77,12 @@ export default function GameCard({
       if (!response.ok) {
         setMessage(data.error || "Could not update favorites");
         return;
+      }
+
+      if (data.action === "removed") {
+        setFavoriteIds((prev) => prev.filter((favoriteId) => favoriteId !== id));
+      } else {
+        setFavoriteIds((prev) => Array.from(new Set([...prev, id])));
       }
 
       setMessage(data.action === "removed" ? "Removed from favorites" : "Added to favorites");
