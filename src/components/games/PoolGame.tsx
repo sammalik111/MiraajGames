@@ -220,12 +220,23 @@ export default function PoolGame() {
         return;
       }
 
-      // 8-ball potted → instant loss
+      // 8-ball potted → win if all own balls cleared, otherwise lose
       if (newlyPotted.some((b) => b.type === "8")) {
+        const sType8 = shooter === "player" ? playerTypeRef.current : computerTypeRef.current;
+        const myBallType = sType8 === "solids" ? "solid" : "stripe";
+        const allCleared = !!sType8 && ballsRef.current
+          .filter((b) => b.type === myBallType)
+          .every((b) => b.potted);
         setGameOver(true);
-        setMessage(shooter === "player"
-          ? "You sank the 8-ball — you lose! 💀"
-          : "Computer sank the 8-ball — you win! 🎉");
+        if (allCleared) {
+          setMessage(shooter === "player"
+            ? "You sank the 8-ball — you win! 🏆"
+            : "Computer sank the 8-ball — computer wins! 💀");
+        } else {
+          setMessage(shooter === "player"
+            ? "You sank the 8-ball too early — you lose! 💀"
+            : "Computer sank the 8-ball too early — you win! 🎉");
+        }
         return;
       }
 
@@ -265,7 +276,7 @@ export default function PoolGame() {
     return () => window.clearInterval(id);
   }, []);
 
-  // Computer AI (≈80% accuracy)
+  // Computer AI — ghost-ball technique
   useEffect(() => {
     const id = window.setInterval(() => {
       if (gameOver) return;
@@ -286,25 +297,39 @@ export default function PoolGame() {
       const pool = candidates.length > 0 ? candidates : fallback;
       if (!pool.length) { hasShotRef.current = false; return; }
 
-      // 20% chance pick random ball instead of closest
-      const useRandom = Math.random() < 0.2;
+      // Score each ball: prefer balls closest to a pocket
+      const nearestPocket = (b: Ball) =>
+        POCKETS.reduce<{ pocket: typeof POCKETS[0]; dist: number }>(
+          (best, p) => {
+            const d = Math.hypot(b.x - p.x, b.y - p.y);
+            return d < best.dist ? { pocket: p, dist: d } : best;
+          },
+          { pocket: POCKETS[0], dist: Infinity }
+        );
+
+      // 10% chance pick random ball, otherwise pick best-positioned ball
+      const useRandom = Math.random() < 0.1;
       const target = useRandom
         ? pool[Math.floor(Math.random() * pool.length)]
-        : pool.reduce((best, b) =>
-            Math.hypot(b.x - cue.x, b.y - cue.y) < Math.hypot(best.x - cue.x, best.y - cue.y) ? b : best
-          );
+        : pool.reduce((best, b) => nearestPocket(b).dist < nearestPocket(best).dist ? b : best);
 
-      setComputerAim({ x: target.x, y: target.y });
+      // Ghost-ball: position cue should aim at (behind target toward nearest pocket)
+      const { pocket } = nearestPocket(target);
+      const ptx = target.x - pocket.x, pty = target.y - pocket.y;
+      const ptd = Math.hypot(ptx, pty) || 1;
+      const ghostX = target.x + (ptx / ptd) * BALL_R * 2;
+      const ghostY = target.y + (pty / ptd) * BALL_R * 2;
+
+      setComputerAim({ x: ghostX, y: ghostY });
       setMessage("Computer is aiming...");
 
       setTimeout(() => {
         const freshCue = ballsRef.current.find((b) => b.id === 0);
         if (!freshCue || freshCue.potted) { hasShotRef.current = false; return; }
-        const dx = target.x - freshCue.x;
-        const dy = target.y - freshCue.y;
-        const d = Math.hypot(dx, dy) || 1;
-        // Add ±12° random angle error for ~80% difficulty
-        const jitter = (Math.random() - 0.5) * (Math.PI / 7.5);
+        const dx = ghostX - freshCue.x;
+        const dy = ghostY - freshCue.y;
+        // ±6° jitter for ~90% accuracy
+        const jitter = (Math.random() - 0.5) * (Math.PI / 15);
         const angle = Math.atan2(dy, dx) + jitter;
         const compPower = 4 + Math.random() * 6;
         preShotPottedRef.current = new Set(ballsRef.current.filter((b) => b.potted).map((b) => b.id));

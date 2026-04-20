@@ -14,8 +14,9 @@ const ENEMY_BULLET_SPEED = 1.4;
 const PLAYER_SIZE = 20;
 const ENEMY_SIZE = 22;
 const BULLET_R = 4;
-const SIGHT_RANGE = 180;
-const SIGHT_ANGLE = Math.PI / 4; // ±45°
+const SIGHT_RANGE = 300;
+const SIGHT_ANGLE = Math.PI / 3; // ±60°
+const PROXIMITY_DETECT = 80;     // always detected within this range unless stealth
 const ENEMY_SHOOT_COOLDOWN = 80; // frames
 
 // ── Level enemy configs ────────────────────────────────────────────────────
@@ -215,17 +216,37 @@ function clampToWorld(x: number, y: number, r: number): [number, number] {
   ];
 }
 
+function isInsideObstacle(x: number, y: number, r: number): boolean {
+  return OBSTACLES.some(rect => rectsOverlap(x, y, r, rect));
+}
+
+function findSafeSpawnPos(x: number, y: number): [number, number] {
+  const pad = ENEMY_SIZE / 2 + 6;
+  if (!isInsideObstacle(x, y, pad)) return [x, y];
+  for (let radius = 50; radius <= 500; radius += 50) {
+    for (let step = 0; step < 16; step++) {
+      const angle = (step / 16) * Math.PI * 2;
+      const [cx, cy] = clampToWorld(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius, pad);
+      if (!isInsideObstacle(cx, cy, pad)) return [cx, cy];
+    }
+  }
+  return [x, y];
+}
+
 function buildWorld(levelIdx: number, prevScore: number, prevLives: number): World {
   const spawns = LEVEL_ENEMIES[levelIdx];
-  const enemies: Enemy[] = spawns.map((s, i) => ({
-    id: i,
-    x: s.x, y: s.y,
-    dir: s.dir,
-    speed: 1.2 + levelIdx * 0.3,
-    alive: true,
-    shootCooldown: Math.floor(Math.random() * ENEMY_SHOOT_COOLDOWN),
-    alerted: false,
-  }));
+  const enemies: Enemy[] = spawns.map((s, i) => {
+    const [sx, sy] = findSafeSpawnPos(s.x, s.y);
+    return {
+      id: i,
+      x: sx, y: sy,
+      dir: s.dir,
+      speed: 1.2 + levelIdx * 0.3,
+      alive: true,
+      shootCooldown: Math.floor(Math.random() * ENEMY_SHOOT_COOLDOWN),
+      alerted: false,
+    };
+  });
   return {
     player: { x: 120, y: 120, vx: 0, vy: 0, shootCooldown: 0 },
     enemies,
@@ -267,12 +288,13 @@ export default function ShooterGame() {
   const [phase, setPhase] = useState<"playing" | "levelComplete" | "gameOver" | "win">("playing");
   const [levelMsg, setLevelMsg] = useState("");
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const worldRef = useRef<World>(buildWorld(0, 0, 3));
-  const keysRef = useRef<Set<string>>(new Set());
-  const rafRef = useRef<number>(0);
-  const phaseRef = useRef<"playing" | "levelComplete" | "gameOver" | "win">("playing");
+  const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const worldRef    = useRef<World>(buildWorld(0, 0, 3));
+  const keysRef     = useRef<Set<string>>(new Set());
+  const rafRef      = useRef<number>(0);
+  const phaseRef    = useRef<"playing" | "levelComplete" | "gameOver" | "win">("playing");
   const canShootRef = useRef(true);
+  const mousePosRef = useRef({ x: VIEW_W / 2, y: VIEW_H / 2 });
 
   phaseRef.current = phase;
 
@@ -367,10 +389,20 @@ export default function ShooterGame() {
     ctx.beginPath(); ctx.arc(px, py, PLAYER_SIZE / 2, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#93c5fd"; ctx.lineWidth = 2; ctx.stroke();
     ctx.restore();
-    // Player arrow
-    ctx.strokeStyle = isStealth ? "rgba(147,197,253,0.25)" : "#93c5fd";
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + 10, py); ctx.stroke();
+    // Aim line + crosshair toward mouse cursor
+    const mx = mousePosRef.current.x; const my = mousePosRef.current.y;
+    if (!isStealth) {
+      ctx.strokeStyle = "rgba(147,197,253,0.35)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 6]);
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(mx, my); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = "rgba(147,197,253,0.7)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(mx - 7, my); ctx.lineTo(mx + 7, my); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(mx, my - 7); ctx.lineTo(mx, my + 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(mx, my, 4, 0, Math.PI * 2); ctx.stroke();
+    }
 
     // Minimap
     const mmW = 120; const mmH = 72;
@@ -416,11 +448,17 @@ export default function ShooterGame() {
       w.stealthTicks++;
     }
 
-    // Player shoot
+    // Player shoot (aim toward mouse cursor in world space)
     const isStealth = !moved && w.stealthTicks > 10;
     if (keys.has(" ") && canShootRef.current && !isStealth) {
       canShootRef.current = false;
-      w.bullets.push({ id: w.idCounter++, x: p.x, y: p.y, vx: PLAYER_BULLET_SPEED, vy: 0, fromPlayer: true });
+      const camX = Math.max(0, Math.min(WORLD_W - VIEW_W, p.x - VIEW_W / 2));
+      const camY = Math.max(0, Math.min(WORLD_H - VIEW_H, p.y - VIEW_H / 2));
+      const mwx = mousePosRef.current.x + camX;
+      const mwy = mousePosRef.current.y + camY;
+      const bdx = mwx - p.x; const bdy = mwy - p.y;
+      const bd  = Math.sqrt(bdx * bdx + bdy * bdy) || 1;
+      w.bullets.push({ id: w.idCounter++, x: p.x, y: p.y, vx: (bdx / bd) * PLAYER_BULLET_SPEED, vy: (bdy / bd) * PLAYER_BULLET_SPEED, fromPlayer: true });
       setTimeout(() => { canShootRef.current = true; }, 350);
     }
 
@@ -435,7 +473,8 @@ export default function ShooterGame() {
       const dist = Math.sqrt(dx * dx + dy * dy);
       const angleToPlayer = Math.atan2(dy, dx);
       const angleDiff = Math.abs(((angleToPlayer - enemy.dir + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-      const canSeePlayer = dist < SIGHT_RANGE && angleDiff < SIGHT_ANGLE && !isStealth;
+      const inCone = dist < SIGHT_RANGE && angleDiff < SIGHT_ANGLE;
+      const canSeePlayer = !isStealth && (dist < PROXIMITY_DETECT || inCone);
 
       enemy.alerted = canSeePlayer;
 
@@ -583,11 +622,11 @@ export default function ShooterGame() {
         <div className="bg-slate-800 rounded-lg px-4 py-2 mb-4 text-sm text-slate-300 flex flex-wrap gap-4">
           <span>Arrows to move</span>
           <span>•</span>
-          <span>Space to shoot</span>
+          <span>Move mouse to aim · Space to shoot</span>
           <span>•</span>
-          <span>Stand still = invisible to enemies</span>
+          <span>Stand still → invisible (enemies can&apos;t see you)</span>
           <span>•</span>
-          <span>Reach the green GOAL or eliminate all enemies</span>
+          <span>Reach the green GOAL or kill all enemies</span>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -620,7 +659,11 @@ export default function ShooterGame() {
                 ref={canvasRef}
                 width={VIEW_W}
                 height={VIEW_H}
-                className="block rounded-lg border-2 border-slate-600"
+                className="block rounded-lg border-2 border-slate-600 cursor-crosshair"
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  mousePosRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                }}
               />
 
               {phase === "levelComplete" && (
