@@ -134,28 +134,12 @@ export default function TetrisGame() {
   }, [level]);
 
   const hardDrop = useCallback(() => {
-    const p = pieceRef.current;
     let d = 0;
-    while (!collides(boardRef.current, p, d + 1, 0)) d++;
-    const lockedPiece = { ...p, row: p.row + d };
-    const merged = merge(boardRef.current, lockedPiece);
-    const { board: cleared, cleared: n } = clearLines(merged);
-    setBoard(cleared);
-    if (n) {
-      setScore((s) => s + [0, 40, 100, 300, 1200][n] * level);
-      setLines((l) => {
-        const nl = l + n;
-        setLevel(Math.floor(nl / 10) + 1);
-        return nl;
-      });
-    }
-    const next = spawnPiece();
-    if (collides(cleared, next)) {
-      setGameOver(true);
-    } else {
-      setPiece(next);
-    }
-  }, [level]);
+    while (!collides(boardRef.current, pieceRef.current, d + 1, 0)) d++;
+    const p = pieceRef.current;
+    setPiece({ ...p, row: p.row + d });
+    setTimeout(() => lockPiece(), 0);
+  }, [lockPiece]);
 
   useEffect(() => {
     if (gameOver || paused) return;

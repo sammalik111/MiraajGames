@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 
-const TABLE_W = 320;
-const TABLE_H = 192;
+const TABLE_W = 480;
+const TABLE_H = 288;
 const BALL_R = 10;
 const FRICTION = 0.972;
 const MIN_SPEED = 0.05;
@@ -15,23 +15,22 @@ type Ball = {
 };
 
 const POCKETS = [
-  { x: 12, y: 12 }, { x: TABLE_W / 2, y: 8 }, { x: TABLE_W - 12, y: 12 },
-  { x: 12, y: TABLE_H - 12 }, { x: TABLE_W / 2, y: TABLE_H - 8 }, { x: TABLE_W - 12, y: TABLE_H - 12 },
+  { x: 14, y: 14 }, { x: TABLE_W / 2, y: 10 }, { x: TABLE_W - 14, y: 14 },
+  { x: 14, y: TABLE_H - 14 }, { x: TABLE_W / 2, y: TABLE_H - 10 }, { x: TABLE_W - 14, y: TABLE_H - 14 },
 ];
-const POCKET_R = 14;
+const POCKET_R = 15;
 
 const SOLID_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#ca8a04"];
 const STRIPE_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#ca8a04"];
 
 const startBalls = (): Ball[] => {
   const balls: Ball[] = [
-    { id: 0, x: 80, y: TABLE_H / 2, dx: 0, dy: 0, color: "#ffffff", potted: false, type: "cue" },
+    { id: 0, x: Math.round(TABLE_W * 0.25), y: TABLE_H / 2, dx: 0, dy: 0, color: "#ffffff", potted: false, type: "cue" },
   ];
   const rackOrder = [1, 9, 2, 10, 8, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15];
   const positions: { row: number; col: number }[] = [];
-  for (let row = 0; row < 5; row++) {
+  for (let row = 0; row < 5; row++)
     for (let col = 0; col <= row; col++) positions.push({ row, col });
-  }
   for (let i = 0; i < Math.min(rackOrder.length, positions.length); i++) {
     const id = rackOrder[i];
     const { row, col } = positions[i];
@@ -39,7 +38,7 @@ const startBalls = (): Ball[] => {
     const is8 = id === 8;
     balls.push({
       id,
-      x: 210 + row * (BALL_R * 2 + 0.5),
+      x: Math.round(TABLE_W * 0.66) + row * (BALL_R * 2 + 0.5),
       y: TABLE_H / 2 - row * BALL_R + col * (BALL_R * 2 + 0.5),
       dx: 0, dy: 0,
       color: is8 ? "#111827" : isSolid ? SOLID_COLORS[(id - 1) % 7] : STRIPE_COLORS[(id - 9) % 7],
@@ -50,34 +49,35 @@ const startBalls = (): Ball[] => {
   return balls;
 };
 
+function findCueSpot(liveBalls: Ball[]): { x: number; y: number } {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const x = BALL_R * 2 + Math.random() * (TABLE_W * 0.4 - BALL_R * 4);
+    const y = BALL_R * 2 + Math.random() * (TABLE_H - BALL_R * 4);
+    const clear = liveBalls.every((b) => Math.hypot(b.x - x, b.y - y) > BALL_R * 2.6);
+    const notNearPocket = POCKETS.every((p) => Math.hypot(p.x - x, p.y - y) > POCKET_R + BALL_R + 4);
+    if (clear && notNearPocket) return { x, y };
+  }
+  return { x: TABLE_W * 0.15, y: TABLE_H / 2 };
+}
+
 function BallView({ b, r }: { b: Ball; r: number }) {
   const size = r * 2;
   if (b.type === "cue") {
     return (
-      <div
-        className="absolute rounded-full shadow"
-        style={{
-          left: b.x - r, top: b.y - r, width: size, height: size,
-          background: "radial-gradient(circle at 35% 35%, #fff 0%, #ddd 100%)",
-          border: "1px solid #bbb",
-        }}
-      />
+      <div className="absolute rounded-full shadow" style={{
+        left: b.x - r, top: b.y - r, width: size, height: size,
+        background: "radial-gradient(circle at 35% 35%, #fff 0%, #ddd 100%)",
+        border: "1px solid #bbb",
+      }} />
     );
   }
   if (b.type === "solid") {
     return (
-      <div
-        className="absolute rounded-full shadow flex items-center justify-center overflow-hidden"
-        style={{
-          left: b.x - r, top: b.y - r, width: size, height: size,
-          background: b.color,
-          border: "1px solid rgba(0,0,0,0.35)",
-        }}
-      >
-        <div
-          className="rounded-full bg-white/80 flex items-center justify-center"
-          style={{ width: r * 0.9, height: r * 0.9 }}
-        >
+      <div className="absolute rounded-full shadow flex items-center justify-center overflow-hidden" style={{
+        left: b.x - r, top: b.y - r, width: size, height: size,
+        background: b.color, border: "1px solid rgba(0,0,0,0.35)",
+      }}>
+        <div className="rounded-full bg-white/80 flex items-center justify-center" style={{ width: r * 0.9, height: r * 0.9 }}>
           <span style={{ fontSize: r * 0.52, fontWeight: 700, color: "#111", lineHeight: 1 }}>{b.id}</span>
         </div>
       </div>
@@ -85,44 +85,23 @@ function BallView({ b, r }: { b: Ball; r: number }) {
   }
   if (b.type === "stripe") {
     return (
-      <div
-        className="absolute rounded-full shadow overflow-hidden flex items-center justify-center"
-        style={{
-          left: b.x - r, top: b.y - r, width: size, height: size,
-          background: "#f8f8f8",
-          border: "1px solid rgba(0,0,0,0.25)",
-        }}
-      >
-        <div
-          className="absolute"
-          style={{
-            top: "28%", left: 0, right: 0, height: "44%",
-            background: b.color,
-          }}
-        />
-        <div
-          className="relative z-10 rounded-full bg-white/85 flex items-center justify-center"
-          style={{ width: r * 0.9, height: r * 0.9 }}
-        >
+      <div className="absolute rounded-full shadow overflow-hidden flex items-center justify-center" style={{
+        left: b.x - r, top: b.y - r, width: size, height: size,
+        background: "#f8f8f8", border: "1px solid rgba(0,0,0,0.25)",
+      }}>
+        <div className="absolute" style={{ top: "28%", left: 0, right: 0, height: "44%", background: b.color }} />
+        <div className="relative z-10 rounded-full bg-white/85 flex items-center justify-center" style={{ width: r * 0.9, height: r * 0.9 }}>
           <span style={{ fontSize: r * 0.52, fontWeight: 700, color: "#111", lineHeight: 1 }}>{b.id}</span>
         </div>
       </div>
     );
   }
-  // 8-ball
   return (
-    <div
-      className="absolute rounded-full shadow flex items-center justify-center overflow-hidden"
-      style={{
-        left: b.x - r, top: b.y - r, width: size, height: size,
-        background: "#111827",
-        border: "1px solid rgba(0,0,0,0.5)",
-      }}
-    >
-      <div
-        className="rounded-full bg-white/80 flex items-center justify-center"
-        style={{ width: r * 0.9, height: r * 0.9 }}
-      >
+    <div className="absolute rounded-full shadow flex items-center justify-center overflow-hidden" style={{
+      left: b.x - r, top: b.y - r, width: size, height: size,
+      background: "#111827", border: "1px solid rgba(0,0,0,0.5)",
+    }}>
+      <div className="rounded-full bg-white/80 flex items-center justify-center" style={{ width: r * 0.9, height: r * 0.9 }}>
         <span style={{ fontSize: r * 0.52, fontWeight: 700, color: "#111", lineHeight: 1 }}>8</span>
       </div>
     </div>
@@ -146,7 +125,6 @@ export default function PoolGame() {
   const currentPlayerRef = useRef(currentPlayer);
   const playerTypeRef = useRef(playerType);
   const computerTypeRef = useRef(computerType);
-  // snapshot of potted IDs before the shot fires + who shot
   const preShotPottedRef = useRef<Set<number>>(new Set());
   const whoShotRef = useRef<"player" | "computer">("player");
   const awaitingResolutionRef = useRef(false);
@@ -201,20 +179,20 @@ export default function PoolGame() {
     return () => window.clearInterval(tick);
   }, []);
 
-  // Assign ball types on first pocket of each type
+  // Assign ball types on first legal pocket
   useEffect(() => {
     if (playerTypeRef.current || computerTypeRef.current) return;
     for (const b of balls) {
       if (!b.potted || b.type === "cue" || b.type === "8") continue;
       const pType = b.type === "solid" ? "solids" : "stripes";
-      const cType = b.type === "solid" ? "stripes" : "solids";
+      const cType = pType === "solids" ? "stripes" : "solids";
       if (currentPlayerRef.current === "player") { setPlayerType(pType); setComputerType(cType); }
       else { setComputerType(pType); setPlayerType(cType); }
       break;
     }
   }, [balls]);
 
-  // Post-shot resolution: runs after all balls stop
+  // Post-shot resolution
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!awaitingResolutionRef.current) return;
@@ -227,62 +205,76 @@ export default function PoolGame() {
         (b) => b.potted && !preShotPottedRef.current.has(b.id)
       );
 
-      // 8-ball sunk → instant loss for whoever sank it
-      if (newlyPotted.some((b) => b.type === "8")) {
-        setGameOver(true);
-        if (shooter === "player") {
-          setMessage("You sank the 8-ball — you lose! 💀");
-        } else {
-          setMessage("Computer sank the 8-ball — you win! 🎉");
-        }
+      // Cue ball potted → foul: respawn cue, switch turn
+      const cuePotted = newlyPotted.some((b) => b.type === "cue");
+      if (cuePotted) {
+        const live = ballsRef.current.filter((b) => !b.potted && b.type !== "cue");
+        const pos = findCueSpot(live);
+        setBalls((prev) =>
+          prev.map((b) => b.id === 0 ? { ...b, x: pos.x, y: pos.y, dx: 0, dy: 0, potted: false } : b)
+        );
+        const next = shooter === "player" ? "computer" : "player";
+        setCurrentPlayer(next);
+        if (next === "computer") hasShotRef.current = false;
+        setMessage(`Cue ball potted — foul! ${next === "player" ? "Your" : "Computer's"} turn.`);
         return;
       }
 
-      // Determine shooter's ball type
+      // 8-ball potted → instant loss
+      if (newlyPotted.some((b) => b.type === "8")) {
+        setGameOver(true);
+        setMessage(shooter === "player"
+          ? "You sank the 8-ball — you lose! 💀"
+          : "Computer sank the 8-ball — you win! 🎉");
+        return;
+      }
+
       const sType = shooter === "player" ? playerTypeRef.current : computerTypeRef.current;
+
+      // Check if shooter potted any opponent ball (foul) — only once types are assigned
+      const pottedOpponent = sType && newlyPotted.some((b) => {
+        const wrongType = sType === "solids" ? "stripe" : "solid";
+        return b.type === wrongType;
+      });
+
+      // Check if shooter potted their own ball
       const sunkOwn = newlyPotted.some((b) => {
-        if (!sType) return b.type !== "8";
+        if (!sType) return b.type !== "8" && b.type !== "cue";
         return b.type === (sType === "solids" ? "solid" : "stripe");
       });
 
-      if (sunkOwn) {
-        // Bonus turn — same player goes again
-        setCurrentPlayer(shooter);
-        if (shooter === "computer") {
-          hasShotRef.current = false;
-          setMessage("Computer potted — goes again...");
-        } else {
-          setMessage("You potted — shoot again!");
-        }
-      } else {
-        // Miss or wrong ball — switch
+      if (pottedOpponent && !sunkOwn) {
+        // Foul: only opponent balls went in → switch turn
         const next = shooter === "player" ? "computer" : "player";
         setCurrentPlayer(next);
-        hasShotRef.current = false;
+        if (next === "computer") hasShotRef.current = false;
+        setMessage(`Foul — wrong ball! ${next === "player" ? "Your" : "Computer's"} turn.`);
+      } else if (sunkOwn) {
+        // Potted own ball (regardless of also potting opponent) → bonus turn
+        setCurrentPlayer(shooter);
+        if (shooter === "computer") hasShotRef.current = false;
+        setMessage(shooter === "player" ? "You potted — shoot again!" : "Computer potted — goes again...");
+      } else {
+        // Miss → switch
+        const next = shooter === "player" ? "computer" : "player";
+        setCurrentPlayer(next);
+        if (next === "computer") hasShotRef.current = false;
         setMessage(next === "player" ? "Your turn. Click to aim, then Shoot." : "Computer's turn...");
       }
     }, 60);
     return () => window.clearInterval(id);
   }, []);
 
-  // Computer AI: fires when it's the computer's turn and nothing is moving
+  // Computer AI (≈80% accuracy)
   useEffect(() => {
     const id = window.setInterval(() => {
       if (gameOver) return;
       const moving = ballsRef.current.some((b) => !b.potted && (b.dx !== 0 || b.dy !== 0));
-      if (moving) return;
-      if (currentPlayerRef.current !== "computer") return;
-      if (hasShotRef.current) return;
-      if (awaitingResolutionRef.current) return;
+      if (moving || currentPlayerRef.current !== "computer" || hasShotRef.current || awaitingResolutionRef.current) return;
       hasShotRef.current = true;
 
       const cue = ballsRef.current.find((b) => b.id === 0);
-      if (!cue || cue.potted) {
-        setCurrentPlayer("player");
-        setMessage("Your turn.");
-        hasShotRef.current = false;
-        return;
-      }
+      if (!cue || cue.potted) { hasShotRef.current = false; setCurrentPlayer("player"); return; }
 
       const myType = computerTypeRef.current;
       const candidates = ballsRef.current.filter((b) => {
@@ -290,28 +282,36 @@ export default function PoolGame() {
         if (!myType) return b.type !== "8";
         return b.type === (myType === "solids" ? "solid" : "stripe");
       });
-      const target = candidates.length > 0
-        ? candidates.reduce((best, b) =>
-            Math.hypot(b.x - cue.x, b.y - cue.y) < Math.hypot(best.x - cue.x, best.y - cue.y) ? b : best
-          )
-        : ballsRef.current.filter((b) => !b.potted && b.id !== 0)[0];
+      const fallback = ballsRef.current.filter((b) => !b.potted && b.id !== 0);
+      const pool = candidates.length > 0 ? candidates : fallback;
+      if (!pool.length) { hasShotRef.current = false; return; }
 
-      if (!target) { hasShotRef.current = false; return; }
+      // 20% chance pick random ball instead of closest
+      const useRandom = Math.random() < 0.2;
+      const target = useRandom
+        ? pool[Math.floor(Math.random() * pool.length)]
+        : pool.reduce((best, b) =>
+            Math.hypot(b.x - cue.x, b.y - cue.y) < Math.hypot(best.x - cue.x, best.y - cue.y) ? b : best
+          );
 
       setComputerAim({ x: target.x, y: target.y });
       setMessage("Computer is aiming...");
 
       setTimeout(() => {
-        const currentCue = ballsRef.current.find((b) => b.id === 0);
-        if (!currentCue || currentCue.potted) { hasShotRef.current = false; return; }
-        const dx = target.x - currentCue.x;
-        const dy = target.y - currentCue.y;
+        const freshCue = ballsRef.current.find((b) => b.id === 0);
+        if (!freshCue || freshCue.potted) { hasShotRef.current = false; return; }
+        const dx = target.x - freshCue.x;
+        const dy = target.y - freshCue.y;
         const d = Math.hypot(dx, dy) || 1;
+        // Add ±12° random angle error for ~80% difficulty
+        const jitter = (Math.random() - 0.5) * (Math.PI / 7.5);
+        const angle = Math.atan2(dy, dx) + jitter;
+        const compPower = 4 + Math.random() * 6;
         preShotPottedRef.current = new Set(ballsRef.current.filter((b) => b.potted).map((b) => b.id));
         whoShotRef.current = "computer";
         awaitingResolutionRef.current = true;
         setBalls((prev) =>
-          prev.map((b) => b.id === 0 ? { ...b, dx: (dx / d) * (5 + Math.random() * 6), dy: (dy / d) * (5 + Math.random() * 6) } : b)
+          prev.map((b) => b.id === 0 ? { ...b, dx: Math.cos(angle) * compPower, dy: Math.sin(angle) * compPower } : b)
         );
         setComputerAim(null);
         setShots((s) => s + 1);
@@ -366,10 +366,10 @@ export default function PoolGame() {
   const cue = balls.find((b) => b.id === 0);
 
   return (
-    <div className="space-y-6 w-full max-w-2xl px-4">
+    <div className="space-y-6 w-full max-w-3xl px-4">
       <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-6 shadow-2xl shadow-slate-950/20">
         <h2 className="text-2xl font-semibold text-white">8 Ball Pool</h2>
-        <p className="mt-2 text-slate-400">Click to aim, Shoot to fire. Solids = filled color; Stripes = colored band on white.</p>
+        <p className="mt-2 text-slate-400">Click to aim, Shoot to fire. Pot your type to keep your turn. Wrong type or cue ball = foul.</p>
       </div>
 
       <div
@@ -386,7 +386,6 @@ export default function PoolGame() {
           <BallView key={b.id} b={b} r={BALL_R} />
         ))}
 
-        {/* Player aim line */}
         {aim && cue && !cue.potted && (
           <svg className="absolute inset-0 pointer-events-none" width={TABLE_W} height={TABLE_H}>
             <line x1={cue.x} y1={cue.y} x2={aim.x} y2={aim.y}
@@ -395,31 +394,24 @@ export default function PoolGame() {
           </svg>
         )}
 
-        {/* Game over overlay */}
         {gameOver && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-[1.25rem] bg-black/70 z-20">
-            <p className="text-center text-sm font-bold text-white px-3 leading-snug">{message}</p>
+          <div className="absolute inset-0 flex items-center justify-center rounded-[1.1rem] bg-black/70 z-20">
+            <p className="text-center text-base font-bold text-white px-4 leading-snug">{message}</p>
           </div>
         )}
 
-        {/* Computer aim — highly visible */}
         {computerAim && cue && !cue.potted && (
           <svg className="absolute inset-0 pointer-events-none" width={TABLE_W} height={TABLE_H}>
             <line x1={cue.x} y1={cue.y} x2={computerAim.x} y2={computerAim.y}
               stroke="#f87171" strokeWidth={2} strokeDasharray="5 3" />
-            {/* Pulsing target circle */}
-            <circle cx={computerAim.x} cy={computerAim.y} r={9} fill="none"
-              stroke="#f87171" strokeWidth={2} opacity={0.9} />
+            <circle cx={computerAim.x} cy={computerAim.y} r={10} fill="none" stroke="#f87171" strokeWidth={2} opacity={0.9} />
             <circle cx={computerAim.x} cy={computerAim.y} r={5} fill="#f87171" opacity={0.7} />
-            <line x1={cue.x - 4} y1={cue.y} x2={cue.x + 4} y2={cue.y}
-              stroke="#f87171" strokeWidth={2} />
-            <line x1={cue.x} y1={cue.y - 4} x2={cue.x} y2={cue.y + 4}
-              stroke="#f87171" strokeWidth={2} />
+            <line x1={cue.x - 5} y1={cue.y} x2={cue.x + 5} y2={cue.y} stroke="#f87171" strokeWidth={2} />
+            <line x1={cue.x} y1={cue.y - 5} x2={cue.x} y2={cue.y + 5} stroke="#f87171" strokeWidth={2} />
           </svg>
         )}
       </div>
 
-      {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-slate-400 px-1">
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 rounded-full bg-amber-500 border border-black/30 flex items-center justify-center">
@@ -438,7 +430,7 @@ export default function PoolGame() {
           <div className="w-4 h-4 rounded-full bg-gray-900 border border-black/50 flex items-center justify-center">
             <span className="text-white font-bold" style={{ fontSize: 6 }}>8</span>
           </div>
-          <span>8-ball</span>
+          <span>8-ball (last)</span>
         </div>
       </div>
 
@@ -465,7 +457,7 @@ export default function PoolGame() {
           You: <span className="text-slate-200">{playerType ?? "TBD"}</span>
           &ensp;Computer: <span className="text-slate-200">{computerType ?? "TBD"}</span>
         </p>
-        <p className="mt-1 text-slate-400">{message}</p>
+        {!gameOver && <p className="mt-1 text-slate-400">{message}</p>}
       </div>
     </div>
   );

@@ -1,437 +1,677 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+
+// ── Constants ──────────────────────────────────────────────────────────────
 
 const VIEW_W = 640;
 const VIEW_H = 480;
 const WORLD_W = 2400;
 const WORLD_H = 1440;
-const PLAYER_SIZE = 24;
-const BULLET_SIZE = 6;
-const ENEMY_SIZE = 24;
 const PLAYER_SPEED = 3;
 const PLAYER_BULLET_SPEED = 2.4;
 const ENEMY_BULLET_SPEED = 1.4;
-const ENEMY_SPEED = 0.9;
+const PLAYER_SIZE = 20;
+const ENEMY_SIZE = 22;
+const BULLET_R = 4;
+const SIGHT_RANGE = 180;
+const SIGHT_ANGLE = Math.PI / 4; // ±45°
+const ENEMY_SHOOT_COOLDOWN = 80; // frames
 
-type Bullet = { x: number; y: number; dx: number; dy: number; fromEnemy: boolean };
-type Enemy = { id: number; x: number; y: number; dir: number; cooldown: number };
-type Player = { x: number; y: number; vx: number; vy: number };
-type Wall = { x: number; y: number; w: number; h: number };
+// ── Level enemy configs ────────────────────────────────────────────────────
 
-const WALLS: Wall[] = [
-  { x: 0, y: 0, w: WORLD_W, h: 20 },
-  { x: 0, y: WORLD_H - 20, w: WORLD_W, h: 20 },
-  { x: 0, y: 0, w: 20, h: WORLD_H },
-  { x: WORLD_W - 20, y: 0, w: 20, h: WORLD_H },
+interface EnemySpawn {
+  x: number;
+  y: number;
+  dir: number; // radians patrol direction
+}
 
-  { x: 200, y: 120, w: 240, h: 20 },
-  { x: 200, y: 120, w: 20, h: 120 },
-  { x: 420, y: 120, w: 20, h: 120 },
-
-  { x: 600, y: 260, w: 340, h: 20 },
-  { x: 600, y: 260, w: 20, h: 160 },
-
-  { x: 1000, y: 120, w: 20, h: 300 },
-  { x: 1020, y: 400, w: 260, h: 20 },
-
-  { x: 1400, y: 180, w: 240, h: 20 },
-  { x: 1400, y: 180, w: 20, h: 240 },
-  { x: 1620, y: 180, w: 20, h: 120 },
-
-  { x: 1800, y: 80, w: 20, h: 400 },
-  { x: 1800, y: 500, w: 400, h: 20 },
-
-  { x: 300, y: 540, w: 400, h: 20 },
-  { x: 700, y: 540, w: 20, h: 260 },
-  { x: 300, y: 780, w: 420, h: 20 },
-
-  { x: 880, y: 640, w: 300, h: 20 },
-  { x: 880, y: 640, w: 20, h: 200 },
-  { x: 1160, y: 640, w: 20, h: 300 },
-
-  { x: 1320, y: 700, w: 300, h: 20 },
-  { x: 1600, y: 700, w: 20, h: 240 },
-  { x: 1320, y: 920, w: 320, h: 20 },
-
-  { x: 100, y: 980, w: 500, h: 20 },
-  { x: 100, y: 1200, w: 600, h: 20 },
-  { x: 600, y: 1000, w: 20, h: 200 },
-
-  { x: 800, y: 1060, w: 360, h: 20 },
-  { x: 1160, y: 1060, w: 20, h: 260 },
-  { x: 800, y: 1300, w: 380, h: 20 },
-
-  { x: 1360, y: 1100, w: 400, h: 20 },
-  { x: 1760, y: 1100, w: 20, h: 280 },
-  { x: 1360, y: 1360, w: 420, h: 20 },
-  { x: 1360, y: 1100, w: 20, h: 100 },
-
-  { x: 1920, y: 640, w: 20, h: 420 },
-  { x: 1920, y: 1040, w: 320, h: 20 },
+const LEVEL_ENEMIES: EnemySpawn[][] = [
+  // Level 1: 8 enemies
+  [
+    { x: 400,  y: 200,  dir: 0 },
+    { x: 800,  y: 400,  dir: Math.PI },
+    { x: 1200, y: 300,  dir: Math.PI / 2 },
+    { x: 600,  y: 700,  dir: -Math.PI / 2 },
+    { x: 1600, y: 200,  dir: Math.PI },
+    { x: 1000, y: 900,  dir: 0 },
+    { x: 1800, y: 600,  dir: Math.PI / 2 },
+    { x: 2000, y: 1100, dir: 0 },
+  ],
+  // Level 2: 14 enemies
+  [
+    { x: 300,  y: 200,  dir: 0 },
+    { x: 700,  y: 350,  dir: Math.PI },
+    { x: 1100, y: 200,  dir: Math.PI / 2 },
+    { x: 500,  y: 600,  dir: -Math.PI / 2 },
+    { x: 1400, y: 400,  dir: Math.PI },
+    { x: 900,  y: 800,  dir: 0 },
+    { x: 1700, y: 500,  dir: Math.PI / 2 },
+    { x: 2100, y: 900,  dir: -Math.PI / 2 },
+    { x: 350,  y: 1000, dir: 0 },
+    { x: 1300, y: 1100, dir: Math.PI },
+    { x: 1900, y: 300,  dir: 0 },
+    { x: 600,  y: 1200, dir: Math.PI / 2 },
+    { x: 2200, y: 700,  dir: -Math.PI / 2 },
+    { x: 1500, y: 1300, dir: 0 },
+  ],
+  // Level 3: 20 enemies
+  [
+    { x: 300,  y: 150,  dir: 0 },
+    { x: 650,  y: 300,  dir: Math.PI },
+    { x: 1050, y: 180,  dir: Math.PI / 2 },
+    { x: 450,  y: 550,  dir: -Math.PI / 2 },
+    { x: 1350, y: 350,  dir: Math.PI },
+    { x: 850,  y: 750,  dir: 0 },
+    { x: 1650, y: 480,  dir: Math.PI / 2 },
+    { x: 2050, y: 850,  dir: -Math.PI / 2 },
+    { x: 320,  y: 950,  dir: 0 },
+    { x: 1250, y: 1050, dir: Math.PI },
+    { x: 1850, y: 280,  dir: 0 },
+    { x: 580,  y: 1150, dir: Math.PI / 2 },
+    { x: 2150, y: 680,  dir: -Math.PI / 2 },
+    { x: 1480, y: 1250, dir: 0 },
+    { x: 750,  y: 1350, dir: Math.PI },
+    { x: 1950, y: 1100, dir: 0 },
+    { x: 2300, y: 400,  dir: -Math.PI / 2 },
+    { x: 1100, y: 1350, dir: Math.PI / 2 },
+    { x: 2200, y: 1300, dir: 0 },
+    { x: 400,  y: 1350, dir: Math.PI },
+  ],
 ];
 
-const GOAL = { x: WORLD_W - 120, y: 80, w: 60, h: 60 };
+// ── Types ──────────────────────────────────────────────────────────────────
 
-const collides = (x: number, y: number, w: number, h: number) =>
-  WALLS.some((wall) => x < wall.x + wall.w && x + w > wall.x && y < wall.y + wall.h && y + h > wall.y);
+interface Player {
+  x: number; y: number;
+  vx: number; vy: number;
+  shootCooldown: number;
+}
 
-const clampToWorld = (x: number, y: number, w: number, h: number) => ({
-  x: Math.max(0, Math.min(WORLD_W - w, x)),
-  y: Math.max(0, Math.min(WORLD_H - h, y)),
-});
+interface Enemy {
+  id: number;
+  x: number; y: number;
+  dir: number; // patrol direction in radians
+  speed: number;
+  alive: boolean;
+  shootCooldown: number;
+  alerted: boolean;
+}
 
-const initialEnemies = (): Enemy[] => {
-  const positions = [
-    { x: 320, y: 180 }, { x: 780, y: 340 }, { x: 1120, y: 240 },
-    { x: 1500, y: 320 }, { x: 1880, y: 380 },
-    { x: 500, y: 640 }, { x: 1000, y: 760 }, { x: 1440, y: 820 },
-    { x: 240, y: 1080 }, { x: 900, y: 1180 }, { x: 1540, y: 1220 },
-    { x: 2080, y: 900 }, { x: 2080, y: 1220 },
+interface Bullet {
+  id: number;
+  x: number; y: number;
+  vx: number; vy: number;
+  fromPlayer: boolean;
+}
+
+interface World {
+  player: Player;
+  enemies: Enemy[];
+  bullets: Bullet[];
+  score: number;
+  lives: number;
+  level: number; // 1-based
+  idCounter: number;
+  phase: "playing" | "levelComplete" | "gameOver" | "win";
+  stealthTicks: number; // ticks player has been still
+}
+
+// ── World obstacles (static rects) ────────────────────────────────────────
+
+interface Rect { x: number; y: number; w: number; h: number }
+// Tight corridor layout — walls form rooms and choke-points
+const OBSTACLES: Rect[] = [
+  // ── Top horizontal walls ──
+  { x: 200,  y: 80,   w: 400, h: 40 },
+  { x: 800,  y: 80,   w: 300, h: 40 },
+  { x: 1300, y: 80,   w: 400, h: 40 },
+  { x: 1900, y: 80,   w: 350, h: 40 },
+
+  // ── Left block + corridor ──
+  { x: 80,   y: 200,  w: 40,  h: 500 },
+  { x: 80,   y: 820,  w: 40,  h: 300 },
+
+  // ── Room 1 (upper-left) ──
+  { x: 200,  y: 200,  w: 300, h: 40 },
+  { x: 200,  y: 200,  w: 40,  h: 280 },
+  { x: 200,  y: 440,  w: 200, h: 40 },
+
+  // ── Vertical divider 1 ──
+  { x: 560,  y: 160,  w: 40,  h: 360 },
+  { x: 560,  y: 620,  w: 40,  h: 200 },
+
+  // ── Room 2 (upper-mid) ──
+  { x: 680,  y: 200,  w: 320, h: 40 },
+  { x: 680,  y: 200,  w: 40,  h: 260 },
+  { x: 860,  y: 380,  w: 140, h: 40 },
+
+  // ── Vertical divider 2 ──
+  { x: 1060, y: 80,   w: 40,  h: 300 },
+  { x: 1060, y: 480,  w: 40,  h: 280 },
+
+  // ── Room 3 (upper-right) ──
+  { x: 1160, y: 200,  w: 300, h: 40 },
+  { x: 1380, y: 200,  w: 40,  h: 300 },
+  { x: 1160, y: 460,  w: 180, h: 40 },
+
+  // ── Vertical divider 3 ──
+  { x: 1560, y: 160,  w: 40,  h: 360 },
+  { x: 1560, y: 620,  w: 40,  h: 200 },
+
+  // ── Room 4 (far right) ──
+  { x: 1680, y: 200,  w: 320, h: 40 },
+  { x: 1680, y: 200,  w: 40,  h: 280 },
+  { x: 1880, y: 340,  w: 120, h: 40 },
+
+  // ── Mid horizontal wall ──
+  { x: 160,  y: 760,  w: 300, h: 40 },
+  { x: 600,  y: 720,  w: 240, h: 40 },
+  { x: 980,  y: 760,  w: 280, h: 40 },
+  { x: 1400, y: 720,  w: 240, h: 40 },
+  { x: 1760, y: 760,  w: 320, h: 40 },
+
+  // ── Lower rooms ──
+  { x: 200,  y: 900,  w: 40,  h: 300 },
+  { x: 200,  y: 900,  w: 300, h: 40 },
+  { x: 440,  y: 1060, w: 40,  h: 180 },
+
+  { x: 680,  y: 860,  w: 280, h: 40 },
+  { x: 880,  y: 860,  w: 40,  h: 280 },
+  { x: 680,  y: 1100, w: 160, h: 40 },
+
+  { x: 1080, y: 900,  w: 40,  h: 280 },
+  { x: 1080, y: 900,  w: 260, h: 40 },
+  { x: 1280, y: 1060, w: 40,  h: 180 },
+
+  { x: 1440, y: 860,  w: 280, h: 40 },
+  { x: 1440, y: 860,  w: 40,  h: 280 },
+  { x: 1560, y: 1080, w: 160, h: 40 },
+
+  { x: 1800, y: 900,  w: 40,  h: 300 },
+  { x: 1800, y: 900,  w: 280, h: 40 },
+  { x: 2000, y: 1060, w: 40,  h: 180 },
+
+  // ── Bottom wall ──
+  { x: 160,  y: 1300, w: 400, h: 40 },
+  { x: 720,  y: 1320, w: 300, h: 40 },
+  { x: 1160, y: 1300, w: 360, h: 40 },
+  { x: 1680, y: 1320, w: 340, h: 40 },
+
+  // ── Right border ──
+  { x: 2280, y: 200,  w: 40,  h: 500 },
+  { x: 2280, y: 820,  w: 40,  h: 360 },
+];
+
+function rectsOverlap(ax: number, ay: number, ar: number, rect: Rect): boolean {
+  return ax + ar > rect.x && ax - ar < rect.x + rect.w &&
+    ay + ar > rect.y && ay - ar < rect.y + rect.h;
+}
+
+function clampToWorld(x: number, y: number, r: number): [number, number] {
+  return [
+    Math.max(r, Math.min(WORLD_W - r, x)),
+    Math.max(r, Math.min(WORLD_H - r, y)),
   ];
-  return positions.map((pos, i) => ({ id: i, ...pos, dir: i % 4, cooldown: 0 }));
-};
+}
 
-const canSee = (enemy: Enemy, player: Player, visible: boolean) => {
-  if (!visible) return false;
-  const dx = player.x + PLAYER_SIZE / 2 - (enemy.x + ENEMY_SIZE / 2);
-  const dy = player.y + PLAYER_SIZE / 2 - (enemy.y + ENEMY_SIZE / 2);
-  const dist = Math.hypot(dx, dy);
-  if (dist > 180) return false;
-  const angle = Math.atan2(dy, dx);
-  const enemyAngle = enemy.dir * Math.PI / 2;
-  let diff = Math.abs(angle - enemyAngle);
-  if (diff > Math.PI) diff = 2 * Math.PI - diff;
-  return diff < Math.PI / 4;
-};
+function buildWorld(levelIdx: number, prevScore: number, prevLives: number): World {
+  const spawns = LEVEL_ENEMIES[levelIdx];
+  const enemies: Enemy[] = spawns.map((s, i) => ({
+    id: i,
+    x: s.x, y: s.y,
+    dir: s.dir,
+    speed: 1.2 + levelIdx * 0.3,
+    alive: true,
+    shootCooldown: Math.floor(Math.random() * ENEMY_SHOOT_COOLDOWN),
+    alerted: false,
+  }));
+  return {
+    player: { x: 120, y: 120, vx: 0, vy: 0, shootCooldown: 0 },
+    enemies,
+    bullets: [],
+    score: prevScore,
+    lives: prevLives,
+    level: levelIdx + 1,
+    idCounter: 1000,
+    phase: "playing",
+    stealthTicks: 0,
+  };
+}
+
+// ── Ad Placeholder ─────────────────────────────────────────────────────────
+
+function AdPlaceholder() {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span className="text-xs text-slate-500 font-semibold tracking-widest uppercase">
+        Advertisement
+      </span>
+      <div
+        className="rounded border border-slate-600 bg-slate-800 flex items-center justify-center text-slate-500 text-sm font-medium"
+        style={{ width: 300, height: 250 }}
+      >
+        300 × 250 Ad
+      </div>
+    </div>
+  );
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
 
 export default function ShooterGame() {
-  const spawn = { x: 60, y: WORLD_H - 80, vx: 0, vy: 0 };
-  const [player, setPlayer] = useState<Player>(spawn);
-  const [bullets, setBullets] = useState<Bullet[]>([]);
-  const [enemies, setEnemies] = useState<Enemy[]>(initialEnemies);
-  const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [message, setMessage] = useState("Arrows to move, space to shoot. Stand still to stay invisible.");
-  const [gameOver, setGameOver] = useState(false);
-  const [victory, setVictory] = useState(false);
+  const [uiScore, setUiScore] = useState(0);
+  const [uiLives, setUiLives] = useState(3);
+  const [uiLevel, setUiLevel] = useState(1);
+  const [uiStealth, setUiStealth] = useState(true);
+  const [phase, setPhase] = useState<"playing" | "levelComplete" | "gameOver" | "win">("playing");
+  const [levelMsg, setLevelMsg] = useState("");
 
-  const keysRef = useRef({ left: false, right: false, up: false, down: false });
-  const bulletsRef = useRef<Bullet[]>([]);
-  const enemiesRef = useRef<Enemy[]>(initialEnemies());
-  const playerRef = useRef<Player>(player);
-  const shotCooldown = useRef(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const worldRef = useRef<World>(buildWorld(0, 0, 3));
+  const keysRef = useRef<Set<string>>(new Set());
+  const rafRef = useRef<number>(0);
+  const phaseRef = useRef<"playing" | "levelComplete" | "gameOver" | "win">("playing");
+  const canShootRef = useRef(true);
 
-  useEffect(() => { playerRef.current = player; }, [player]);
+  phaseRef.current = phase;
 
+  const drawFrame = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const w = worldRef.current;
+    const p = w.player;
+
+    // Camera
+    const camX = Math.max(0, Math.min(WORLD_W - VIEW_W, p.x - VIEW_W / 2));
+    const camY = Math.max(0, Math.min(WORLD_H - VIEW_H, p.y - VIEW_H / 2));
+
+    // Background
+    ctx.fillStyle = "#1a2e1a";
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    // Grid
+    ctx.strokeStyle = "#1e3a1e";
+    ctx.lineWidth = 1;
+    const gSize = 60;
+    for (let gx = Math.floor(camX / gSize) * gSize; gx < camX + VIEW_W; gx += gSize) {
+      ctx.beginPath(); ctx.moveTo(gx - camX, 0); ctx.lineTo(gx - camX, VIEW_H); ctx.stroke();
+    }
+    for (let gy = Math.floor(camY / gSize) * gSize; gy < camY + VIEW_H; gy += gSize) {
+      ctx.beginPath(); ctx.moveTo(0, gy - camY); ctx.lineTo(VIEW_W, gy - camY); ctx.stroke();
+    }
+
+    // Obstacles
+    OBSTACLES.forEach((rect) => {
+      const rx = rect.x - camX; const ry = rect.y - camY;
+      ctx.fillStyle = "#374151";
+      ctx.fillRect(rx, ry, rect.w, rect.h);
+      ctx.strokeStyle = "#4b5563"; ctx.lineWidth = 2;
+      ctx.strokeRect(rx, ry, rect.w, rect.h);
+    });
+
+    // Goal marker (bottom-right quadrant)
+    const goalX = WORLD_W - 200 - camX;
+    const goalY = WORLD_H - 200 - camY;
+    ctx.fillStyle = "rgba(34,197,94,0.2)";
+    ctx.fillRect(goalX, goalY, 120, 120);
+    ctx.strokeStyle = "#22c55e"; ctx.lineWidth = 3;
+    ctx.strokeRect(goalX, goalY, 120, 120);
+    ctx.fillStyle = "#22c55e"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("GOAL", goalX + 60, goalY + 65);
+
+    // Enemies
+    w.enemies.forEach((enemy) => {
+      if (!enemy.alive) return;
+      const ex = enemy.x - camX; const ey = enemy.y - camY;
+      if (ex < -ENEMY_SIZE || ex > VIEW_W + ENEMY_SIZE || ey < -ENEMY_SIZE || ey > VIEW_H + ENEMY_SIZE) return;
+
+      // Sight cone
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = enemy.alerted ? "#ef4444" : "#fde047";
+      ctx.beginPath(); ctx.moveTo(ex, ey);
+      ctx.arc(ex, ey, SIGHT_RANGE, enemy.dir - SIGHT_ANGLE, enemy.dir + SIGHT_ANGLE);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+
+      // Body
+      ctx.fillStyle = enemy.alerted ? "#ef4444" : "#f59e0b";
+      ctx.beginPath(); ctx.arc(ex, ey, ENEMY_SIZE / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Direction indicator
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex + Math.cos(enemy.dir) * 12, ey + Math.sin(enemy.dir) * 12);
+      ctx.stroke();
+    });
+
+    // Bullets
+    w.bullets.forEach((b) => {
+      const bx = b.x - camX; const by = b.y - camY;
+      ctx.fillStyle = b.fromPlayer ? "#60a5fa" : "#f87171";
+      ctx.beginPath(); ctx.arc(bx, by, BULLET_R, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // Player
+    const px = p.x - camX; const py = p.y - camY;
+    const isMoving = p.vx !== 0 || p.vy !== 0;
+    const isStealth = !isMoving && w.stealthTicks > 10;
+    ctx.save();
+    ctx.globalAlpha = isStealth ? 0.25 : 1;
+    ctx.fillStyle = "#60a5fa";
+    ctx.beginPath(); ctx.arc(px, py, PLAYER_SIZE / 2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#93c5fd"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+    // Player arrow
+    ctx.strokeStyle = isStealth ? "rgba(147,197,253,0.25)" : "#93c5fd";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + 10, py); ctx.stroke();
+
+    // Minimap
+    const mmW = 120; const mmH = 72;
+    const mmX = VIEW_W - mmW - 8; const mmY = 8;
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(mmX, mmY, mmW, mmH);
+    ctx.strokeStyle = "#4b5563"; ctx.lineWidth = 1;
+    ctx.strokeRect(mmX, mmY, mmW, mmH);
+    // Enemies on minimap
+    w.enemies.forEach((e) => {
+      if (!e.alive) return;
+      ctx.fillStyle = e.alerted ? "#ef4444" : "#f59e0b";
+      ctx.fillRect(mmX + (e.x / WORLD_W) * mmW - 1.5, mmY + (e.y / WORLD_H) * mmH - 1.5, 3, 3);
+    });
+    // Player on minimap
+    ctx.fillStyle = "#60a5fa";
+    ctx.fillRect(mmX + (p.x / WORLD_W) * mmW - 2.5, mmY + (p.y / WORLD_H) * mmH - 2.5, 5, 5);
+  }, []);
+
+  const tick = useCallback(() => {
+    if (phaseRef.current !== "playing") return;
+    const w = worldRef.current;
+    const p = w.player;
+    const keys = keysRef.current;
+
+    // Player movement
+    let moved = false;
+    p.vx = 0; p.vy = 0;
+    if (keys.has("ArrowLeft"))  { p.vx = -PLAYER_SPEED; moved = true; }
+    if (keys.has("ArrowRight")) { p.vx =  PLAYER_SPEED; moved = true; }
+    if (keys.has("ArrowUp"))    { p.vy = -PLAYER_SPEED; moved = true; }
+    if (keys.has("ArrowDown"))  { p.vy =  PLAYER_SPEED; moved = true; }
+
+    if (moved) {
+      w.stealthTicks = 0;
+      let nx = p.x + p.vx; let ny = p.y + p.vy;
+      [nx, ny] = clampToWorld(nx, ny, PLAYER_SIZE / 2);
+      // Obstacle collision
+      let blocked = false;
+      OBSTACLES.forEach((rect) => { if (rectsOverlap(nx, ny, PLAYER_SIZE / 2, rect)) blocked = true; });
+      if (!blocked) { p.x = nx; p.y = ny; }
+    } else {
+      w.stealthTicks++;
+    }
+
+    // Player shoot
+    const isStealth = !moved && w.stealthTicks > 10;
+    if (keys.has(" ") && canShootRef.current && !isStealth) {
+      canShootRef.current = false;
+      w.bullets.push({ id: w.idCounter++, x: p.x, y: p.y, vx: PLAYER_BULLET_SPEED, vy: 0, fromPlayer: true });
+      setTimeout(() => { canShootRef.current = true; }, 350);
+    }
+
+    setUiStealth(isStealth);
+
+    // Move enemies
+    w.enemies.forEach((enemy) => {
+      if (!enemy.alive) return;
+
+      // Check sight to player
+      const dx = p.x - enemy.x; const dy = p.y - enemy.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const angleToPlayer = Math.atan2(dy, dx);
+      const angleDiff = Math.abs(((angleToPlayer - enemy.dir + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      const canSeePlayer = dist < SIGHT_RANGE && angleDiff < SIGHT_ANGLE && !isStealth;
+
+      enemy.alerted = canSeePlayer;
+
+      // Cooldown ticks every frame regardless
+      if (enemy.shootCooldown > 0) enemy.shootCooldown--;
+
+      // Shoot
+      if (canSeePlayer) {
+        if (enemy.shootCooldown <= 0) {
+          const speed = ENEMY_BULLET_SPEED;
+          const vx = (dx / dist) * speed; const vy = (dy / dist) * speed;
+          w.bullets.push({ id: w.idCounter++, x: enemy.x, y: enemy.y, vx, vy, fromPlayer: false });
+          enemy.shootCooldown = ENEMY_SHOOT_COOLDOWN;
+        }
+        // Face player
+        enemy.dir = angleToPlayer;
+      }
+
+      // Patrol
+      const speed = canSeePlayer ? enemy.speed * 0.8 : enemy.speed;
+      let nx = enemy.x + Math.cos(enemy.dir) * speed;
+      let ny = enemy.y + Math.sin(enemy.dir) * speed;
+      [nx, ny] = clampToWorld(nx, ny, ENEMY_SIZE / 2);
+
+      // Reverse at world edge or obstacle
+      let blocked = nx === enemy.x || ny === enemy.y;
+      OBSTACLES.forEach((rect) => { if (rectsOverlap(nx, ny, ENEMY_SIZE / 2, rect)) blocked = true; });
+      if (blocked) {
+        enemy.dir = enemy.dir + Math.PI + (Math.random() - 0.5) * 0.5;
+      } else {
+        enemy.x = nx; enemy.y = ny;
+      }
+    });
+
+    // Move bullets
+    w.bullets = w.bullets.filter((b) => {
+      b.x += b.vx; b.y += b.vy;
+      if (b.x < 0 || b.x > WORLD_W || b.y < 0 || b.y > WORLD_H) return false;
+      for (const rect of OBSTACLES) { if (rectsOverlap(b.x, b.y, BULLET_R, rect)) return false; }
+      return true;
+    });
+
+    // Bullet vs enemies
+    w.bullets = w.bullets.filter((b) => {
+      if (!b.fromPlayer) return true;
+      for (const enemy of w.enemies) {
+        if (!enemy.alive) continue;
+        const dx = b.x - enemy.x; const dy = b.y - enemy.y;
+        if (Math.sqrt(dx * dx + dy * dy) < BULLET_R + ENEMY_SIZE / 2) {
+          enemy.alive = false;
+          w.score += 50;
+          setUiScore(w.score);
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Enemy bullets vs player
+    w.bullets = w.bullets.filter((b) => {
+      if (b.fromPlayer) return true;
+      const dx = b.x - p.x; const dy = b.y - p.y;
+      if (Math.sqrt(dx * dx + dy * dy) < BULLET_R + PLAYER_SIZE / 2) {
+        w.lives--;
+        setUiLives(w.lives);
+        if (w.lives <= 0) setPhase("gameOver");
+        return false;
+      }
+      return true;
+    });
+
+    // Check level clear: all enemies dead OR player reached goal
+    const allDead = w.enemies.every((e) => !e.alive);
+    const atGoal = p.x > WORLD_W - 320 && p.y > WORLD_H - 320;
+    if (allDead || atGoal) {
+      w.score += 200;
+      setUiScore(w.score);
+      if (w.level >= LEVEL_ENEMIES.length) {
+        setPhase("win");
+      } else {
+        const msg = `Level ${w.level} Complete! +200 pts`;
+        setLevelMsg(msg);
+        setPhase("levelComplete");
+        const nextIdx = w.level; // 0-based
+        const savedScore = w.score; const savedLives = w.lives;
+        setTimeout(() => {
+          worldRef.current = buildWorld(nextIdx, savedScore, savedLives);
+          setUiLevel(nextIdx + 1);
+          setUiScore(savedScore); setUiLives(savedLives);
+          canShootRef.current = true;
+          setPhase("playing");
+        }, 2000);
+      }
+    }
+
+    drawFrame();
+  }, [drawFrame]);
+
+  // RAF loop
   useEffect(() => {
-    const down = (event: KeyboardEvent) => {
-      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(event.key)) event.preventDefault();
-      if (event.key === "ArrowLeft") keysRef.current.left = true;
-      if (event.key === "ArrowRight") keysRef.current.right = true;
-      if (event.key === "ArrowUp") keysRef.current.up = true;
-      if (event.key === "ArrowDown") keysRef.current.down = true;
-      if (event.key === " " && shotCooldown.current <= 0 && !gameOver && !victory) {
-        const p = playerRef.current;
-        const dir = { dx: 0, dy: -1 };
-        if (keysRef.current.left) { dir.dx = -1; dir.dy = 0; }
-        else if (keysRef.current.right) { dir.dx = 1; dir.dy = 0; }
-        else if (keysRef.current.down) { dir.dx = 0; dir.dy = 1; }
-        else if (keysRef.current.up) { dir.dx = 0; dir.dy = -1; }
-        bulletsRef.current = [
-          ...bulletsRef.current,
-          {
-            x: p.x + PLAYER_SIZE / 2 - BULLET_SIZE / 2,
-            y: p.y + PLAYER_SIZE / 2 - BULLET_SIZE / 2,
-            dx: dir.dx * PLAYER_BULLET_SPEED,
-            dy: dir.dy * PLAYER_BULLET_SPEED,
-            fromEnemy: false,
-          },
-        ];
-        setBullets(bulletsRef.current);
-        shotCooldown.current = 20;
-      }
-    };
-    const up = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft") keysRef.current.left = false;
-      if (event.key === "ArrowRight") keysRef.current.right = false;
-      if (event.key === "ArrowUp") keysRef.current.up = false;
-      if (event.key === "ArrowDown") keysRef.current.down = false;
-    };
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-    };
-  }, [gameOver, victory]);
+    const loop = () => { tick(); rafRef.current = requestAnimationFrame(loop); };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [tick]);
 
+  // Keys
   useEffect(() => {
-    let animation: number;
-    const step = () => {
-      if (gameOver || victory) {
-        animation = requestAnimationFrame(step);
-        return;
-      }
-
-      const nextPlayer = { ...playerRef.current };
-      nextPlayer.vx = 0;
-      nextPlayer.vy = 0;
-      if (keysRef.current.left) nextPlayer.vx -= PLAYER_SPEED;
-      if (keysRef.current.right) nextPlayer.vx += PLAYER_SPEED;
-      if (keysRef.current.up) nextPlayer.vy -= PLAYER_SPEED;
-      if (keysRef.current.down) nextPlayer.vy += PLAYER_SPEED;
-
-      const tryX = nextPlayer.x + nextPlayer.vx;
-      if (!collides(tryX, nextPlayer.y, PLAYER_SIZE, PLAYER_SIZE)) {
-        nextPlayer.x = Math.max(0, Math.min(WORLD_W - PLAYER_SIZE, tryX));
-      }
-      const tryY = nextPlayer.y + nextPlayer.vy;
-      if (!collides(nextPlayer.x, tryY, PLAYER_SIZE, PLAYER_SIZE)) {
-        nextPlayer.y = Math.max(0, Math.min(WORLD_H - PLAYER_SIZE, tryY));
-      }
-
-      const isMoving = nextPlayer.vx !== 0 || nextPlayer.vy !== 0;
-
-      if (shotCooldown.current > 0) shotCooldown.current -= 1;
-
-      let nextBullets = bulletsRef.current
-        .map((b) => ({ ...b, x: b.x + b.dx, y: b.y + b.dy }))
-        .filter((b) =>
-          b.x > -20 && b.x < WORLD_W + 20 && b.y > -20 && b.y < WORLD_H + 20 &&
-          !collides(b.x, b.y, BULLET_SIZE, BULLET_SIZE)
-        );
-
-      const movedEnemies = enemiesRef.current.map((enemy) => {
-        let { x, y, dir } = enemy;
-        let nx = x, ny = y;
-        if (dir === 0) nx = x + ENEMY_SPEED;
-        else if (dir === 1) ny = y + ENEMY_SPEED;
-        else if (dir === 2) nx = x - ENEMY_SPEED;
-        else if (dir === 3) ny = y - ENEMY_SPEED;
-
-        const outOfBounds = nx < 20 || nx > WORLD_W - ENEMY_SIZE - 20 || ny < 20 || ny > WORLD_H - ENEMY_SIZE - 20;
-        if (outOfBounds || collides(nx, ny, ENEMY_SIZE, ENEMY_SIZE)) {
-          dir = (dir + 1) % 4;
-        } else {
-          x = nx;
-          y = ny;
-        }
-        const clamped = clampToWorld(x, y, ENEMY_SIZE, ENEMY_SIZE);
-        return { ...enemy, x: clamped.x, y: clamped.y, dir, cooldown: Math.max(0, enemy.cooldown - 1) };
-      });
-
-      let points = 0;
-      let nextMessage = message;
-      const aliveEnemies: Enemy[] = [];
-      for (const enemy of movedEnemies) {
-        const hitIndex = nextBullets.findIndex(
-          (b) => !b.fromEnemy &&
-            b.x < enemy.x + ENEMY_SIZE && b.x + BULLET_SIZE > enemy.x &&
-            b.y < enemy.y + ENEMY_SIZE && b.y + BULLET_SIZE > enemy.y
-        );
-        if (hitIndex >= 0) {
-          nextBullets.splice(hitIndex, 1);
-          points += 10;
-          nextMessage = "Enemy down!";
-        } else {
-          aliveEnemies.push(enemy);
-        }
-      }
-      if (points > 0) setScore((prev) => prev + points);
-      if (aliveEnemies.length === 0) {
-        setVictory(true);
-        nextMessage = "All enemies cleared — mission success!";
-      }
-
-      const firingEnemies = aliveEnemies.map((enemy) => {
-        if (canSee(enemy, nextPlayer, isMoving) && enemy.cooldown <= 0 && Math.random() < 0.03) {
-          const ex = enemy.x + ENEMY_SIZE / 2 - BULLET_SIZE / 2;
-          const ey = enemy.y + ENEMY_SIZE / 2 - BULLET_SIZE / 2;
-          const tx = nextPlayer.x + PLAYER_SIZE / 2 - (enemy.x + ENEMY_SIZE / 2);
-          const ty = nextPlayer.y + PLAYER_SIZE / 2 - (enemy.y + ENEMY_SIZE / 2);
-          const d = Math.hypot(tx, ty) || 1;
-          nextBullets.push({
-            x: ex,
-            y: ey,
-            dx: (tx / d) * ENEMY_BULLET_SPEED,
-            dy: (ty / d) * ENEMY_BULLET_SPEED,
-            fromEnemy: true,
-          });
-          return { ...enemy, cooldown: 50 };
-        }
-        return enemy;
-      });
-
-      const hitByEnemy = nextBullets.some((b) =>
-        b.fromEnemy &&
-        b.x < nextPlayer.x + PLAYER_SIZE && b.x + BULLET_SIZE > nextPlayer.x &&
-        b.y < nextPlayer.y + PLAYER_SIZE && b.y + BULLET_SIZE > nextPlayer.y
-      );
-      if (hitByEnemy) {
-        nextBullets = nextBullets.filter((b) =>
-          !(b.fromEnemy &&
-            b.x < nextPlayer.x + PLAYER_SIZE && b.x + BULLET_SIZE > nextPlayer.x &&
-            b.y < nextPlayer.y + PLAYER_SIZE && b.y + BULLET_SIZE > nextPlayer.y)
-        );
-        setLives((prev) => {
-          const nl = prev - 1;
-          if (nl <= 0) { setGameOver(true); setMessage("You were hit — game over."); }
-          else setMessage("Hit! Stay still to stay hidden.");
-          return Math.max(0, nl);
-        });
-      }
-
-      if (nextPlayer.x < GOAL.x + GOAL.w && nextPlayer.x + PLAYER_SIZE > GOAL.x &&
-          nextPlayer.y < GOAL.y + GOAL.h && nextPlayer.y + PLAYER_SIZE > GOAL.y) {
-        setVictory(true);
-        nextMessage = "You reached the goal!";
-      }
-
-      if (nextMessage !== message) setMessage(nextMessage);
-
-      setPlayer(nextPlayer);
-      setBullets(nextBullets);
-      setEnemies(firingEnemies);
-      bulletsRef.current = nextBullets;
-      enemiesRef.current = firingEnemies;
-      playerRef.current = nextPlayer;
-      animation = requestAnimationFrame(step);
+    const onDown = (e: KeyboardEvent) => {
+      if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
+      keysRef.current.add(e.key);
     };
-    animation = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animation);
-  }, [gameOver, victory, message]);
+    const onUp = (e: KeyboardEvent) => { keysRef.current.delete(e.key); };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup", onUp);
+    return () => { window.removeEventListener("keydown", onDown); window.removeEventListener("keyup", onUp); };
+  }, []);
 
-  const reset = () => {
-    setPlayer(spawn);
-    playerRef.current = spawn;
-    const fresh = initialEnemies();
-    setEnemies(fresh);
-    enemiesRef.current = fresh;
-    setBullets([]);
-    bulletsRef.current = [];
-    setScore(0);
-    setLives(3);
-    setGameOver(false);
-    setVictory(false);
-    setMessage("Arrows to move, space to shoot. Stand still to stay invisible.");
+  useEffect(() => { drawFrame(); }, [drawFrame]);
+
+  const restartGame = () => {
+    worldRef.current = buildWorld(0, 0, 3);
+    setUiScore(0); setUiLives(3); setUiLevel(1); setUiStealth(true);
+    canShootRef.current = true;
+    setPhase("playing");
   };
 
-  const camX = Math.max(0, Math.min(WORLD_W - VIEW_W, player.x + PLAYER_SIZE / 2 - VIEW_W / 2));
-  const camY = Math.max(0, Math.min(WORLD_H - VIEW_H, player.y + PLAYER_SIZE / 2 - VIEW_H / 2));
-  const isMoving = player.vx !== 0 || player.vy !== 0;
-  const playerOpacity = isMoving ? 1 : 0.25;
+  const enemiesLeft = worldRef.current.enemies.filter((e) => e.alive).length;
 
   return (
-    <div className="space-y-6 w-full max-w-3xl px-4">
-      <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-6 shadow-2xl shadow-slate-950/20">
-        <h2 className="text-2xl font-semibold text-white">Arcade Shooter</h2>
-        <p className="mt-2 text-slate-400">
-          Big world — camera follows you. Stand still and you turn invisible; enemies can&apos;t see you. Reach the gold zone or clear all enemies.
-        </p>
-      </div>
-
-      <div
-        className="relative mx-auto overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900 shadow-inner shadow-slate-950/40"
-        style={{ width: VIEW_W, height: VIEW_H }}
-      >
-        <div
-          className="absolute will-change-transform"
-          style={{
-            width: WORLD_W,
-            height: WORLD_H,
-            transform: `translate(${-camX}px, ${-camY}px)`,
-          }}
-        >
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
-            }}
-          />
-          <div
-            className="absolute rounded-lg bg-yellow-400/80 shadow-lg shadow-yellow-500/40 ring-2 ring-yellow-200"
-            style={{ left: GOAL.x, top: GOAL.y, width: GOAL.w, height: GOAL.h }}
-          />
-
-          {WALLS.map((wall, i) => (
-            <div
-              key={i}
-              className="absolute rounded-sm bg-slate-600 shadow-inner shadow-slate-900"
-              style={{ left: wall.x, top: wall.y, width: wall.w, height: wall.h }}
-            />
-          ))}
-
-          <svg className="absolute inset-0 pointer-events-none" width={WORLD_W} height={WORLD_H}>
-            {enemies.map((enemy) => {
-              const ex = enemy.x + ENEMY_SIZE / 2;
-              const ey = enemy.y + ENEMY_SIZE / 2;
-              const a = enemy.dir * Math.PI / 2;
-              const d = 180;
-              const la = a - Math.PI / 4, ra = a + Math.PI / 4;
-              return (
-                <g key={`sight-${enemy.id}`}>
-                  <path
-                    d={`M ${ex} ${ey} L ${ex + Math.cos(la) * d} ${ey + Math.sin(la) * d} A ${d} ${d} 0 0 1 ${ex + Math.cos(ra) * d} ${ey + Math.sin(ra) * d} Z`}
-                    fill="rgba(239,68,68,0.08)"
-                    stroke="rgba(239,68,68,0.35)"
-                    strokeWidth={1}
-                  />
-                </g>
-              );
-            })}
-          </svg>
-
-          {enemies.map((enemy) => (
-            <div
-              key={enemy.id}
-              className="absolute rounded-full bg-rose-500 shadow-xl shadow-rose-500/30"
-              style={{ left: enemy.x, top: enemy.y, width: ENEMY_SIZE, height: ENEMY_SIZE }}
-            />
-          ))}
-
-          {bullets.map((b, idx) => (
-            <div
-              key={idx}
-              className={`absolute rounded-full ${b.fromEnemy ? "bg-orange-400" : "bg-cyan-300"}`}
-              style={{ left: b.x, top: b.y, width: BULLET_SIZE, height: BULLET_SIZE }}
-            />
-          ))}
-
-          <div
-            className="absolute rounded-full bg-cyan-400 shadow-2xl shadow-cyan-500/30 transition-opacity duration-150"
-            style={{
-              left: player.x,
-              top: player.y,
-              width: PLAYER_SIZE,
-              height: PLAYER_SIZE,
-              opacity: playerOpacity,
-            }}
-          />
+    <div className="min-h-screen bg-slate-900 text-white py-6 px-4">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold">Stealth Shooter</h1>
+            <p className="text-slate-400 text-sm">Eliminate enemies or reach the goal</p>
+          </div>
+          <div className="bg-slate-700 rounded-xl px-5 py-2 text-center">
+            <div className="text-xs text-slate-400 uppercase tracking-widest">Level</div>
+            <div className="text-2xl font-bold text-yellow-400">{uiLevel} / {LEVEL_ENEMIES.length}</div>
+          </div>
         </div>
 
-        <div className="pointer-events-none absolute right-3 top-3 rounded-lg bg-slate-950/70 px-2 py-1 text-[10px] font-medium text-slate-300">
-          {isMoving ? "VISIBLE" : "STEALTH"}
+        {/* Instructions */}
+        <div className="bg-slate-800 rounded-lg px-4 py-2 mb-4 text-sm text-slate-300 flex flex-wrap gap-4">
+          <span>Arrows to move</span>
+          <span>•</span>
+          <span>Space to shoot</span>
+          <span>•</span>
+          <span>Stand still = invisible to enemies</span>
+          <span>•</span>
+          <span>Reach the green GOAL or eliminate all enemies</span>
         </div>
-      </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-4 py-3 text-sm text-slate-300">
-          <p>Score: {score}</p>
-          <p>Lives: {lives}</p>
-          <p>{victory ? "Victory!" : gameOver ? "Defeat" : "Battle in progress"}</p>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Game */}
+          <div className="flex-1">
+            {/* Stats */}
+            <div className="flex gap-3 mb-3">
+              <div className="bg-slate-800 rounded-lg px-3 py-2 text-center flex-1">
+                <div className="text-xs text-slate-400 uppercase tracking-widest">Score</div>
+                <div className="text-xl font-bold text-yellow-400">{uiScore}</div>
+              </div>
+              <div className="bg-slate-800 rounded-lg px-3 py-2 text-center flex-1">
+                <div className="text-xs text-slate-400 uppercase tracking-widest">Lives</div>
+                <div className="text-xl font-bold text-red-400">{"♥".repeat(uiLives)}{"♡".repeat(Math.max(0, 3 - uiLives))}</div>
+              </div>
+              <div className="bg-slate-800 rounded-lg px-3 py-2 text-center flex-1">
+                <div className="text-xs text-slate-400 uppercase tracking-widest">Enemies</div>
+                <div className="text-xl font-bold text-orange-400">{enemiesLeft}</div>
+              </div>
+              <div className={`rounded-lg px-3 py-2 text-center flex-1 ${uiStealth ? "bg-blue-900" : "bg-red-900"}`}>
+                <div className="text-xs uppercase tracking-widest opacity-70">Status</div>
+                <div className={`text-sm font-bold ${uiStealth ? "text-blue-300" : "text-red-300"}`}>
+                  {uiStealth ? "STEALTH" : "VISIBLE"}
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              <canvas
+                ref={canvasRef}
+                width={VIEW_W}
+                height={VIEW_H}
+                className="block rounded-lg border-2 border-slate-600"
+              />
+
+              {phase === "levelComplete" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 rounded-lg">
+                  <div className="text-3xl font-black text-yellow-400 mb-2">{levelMsg}</div>
+                  <div className="text-slate-300">Loading next level…</div>
+                </div>
+              )}
+              {phase === "gameOver" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 rounded-lg">
+                  <div className="text-4xl font-black text-red-400 mb-2">GAME OVER</div>
+                  <div className="text-slate-300 mb-6">Score: {uiScore}</div>
+                  <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-lg" onClick={restartGame}>Play Again</button>
+                </div>
+              )}
+              {phase === "win" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 rounded-lg">
+                  <div className="text-4xl font-black text-green-400 mb-2">Mission Complete! You Win!</div>
+                  <div className="text-slate-300 mb-6">Final Score: {uiScore}</div>
+                  <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-lg" onClick={restartGame}>Play Again</button>
+                </div>
+              )}
+            </div>
+
+            {/* Ad below viewport */}
+            <div className="mt-4">
+              <AdPlaceholder />
+            </div>
+          </div>
+
+          {/* Right sidebar */}
+          <div className="flex-shrink-0 w-52 flex flex-col gap-4">
+            <div className="bg-slate-800 rounded-lg p-4">
+              <h3 className="text-sm font-bold text-slate-400 mb-3 uppercase tracking-wide">Levels</h3>
+              {LEVEL_ENEMIES.map((lv, i) => (
+                <div key={i} className={`flex items-center justify-between py-1 text-sm border-b border-slate-700 last:border-0 ${i + 1 === uiLevel ? "text-yellow-400 font-bold" : "text-slate-500"}`}>
+                  <span>Level {i + 1}</span>
+                  <span className="text-xs">{lv.length} enemies</span>
+                  {i + 1 < uiLevel && <span className="text-green-400">✓</span>}
+                </div>
+              ))}
+            </div>
+            <div className="bg-slate-800 rounded-lg p-4 text-xs text-slate-400 space-y-2">
+              <div className="font-bold text-slate-300 text-sm mb-1">Legend</div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full bg-blue-400"></span> You (player)</div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full bg-yellow-400"></span> Enemy (patrolling)</div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full bg-red-500"></span> Enemy (alerted)</div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 bg-green-500"></span> Goal zone</div>
+            </div>
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-4 py-3 text-sm text-slate-300">
-          {message}
-        </div>
-        <button
-          onClick={reset}
-          className="rounded-2xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-400"
-        >
-          Restart
-        </button>
       </div>
     </div>
   );
