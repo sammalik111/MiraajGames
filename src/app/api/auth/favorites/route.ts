@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { userFavorites } from "@/auth.config";
 
 export async function GET() {
-    // Return users without passwords for security
     const favorites = Object.entries(userFavorites).map(([userId, gameIds]) => ({
         userId,
         favorites: gameIds

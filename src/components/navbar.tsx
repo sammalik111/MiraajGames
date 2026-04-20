@@ -40,9 +40,9 @@ export default function Navbar() {
           <Link href="/" className="text-sm font-medium text-slate-300 transition hover:text-white">
             Home
           </Link>
-          <a href="#games" className="text-sm font-medium text-slate-300 transition hover:text-white">
+          <Link href="/#games" className="text-sm font-medium text-slate-300 transition hover:text-white">
             Games
-          </a>
+          </Link>
           <Link href="/profile" className="text-sm font-medium text-slate-300 transition hover:text-white">
             Profile
           </Link>

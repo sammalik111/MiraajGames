@@ -5,6 +5,8 @@ import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { games } from "@/data/gameData";
+import GameCard  from "@/components/gameCard";
 
 interface ProfileStats {
   favoriteCount: number;
@@ -25,7 +27,9 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
-  
+  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
+
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/"); // Redirect to home if not authenticated
@@ -40,6 +44,9 @@ export default function Profile() {
       }
 
       setLoadingProfile(true);
+      const favorites = await retrieveFavorites();
+      setFavoriteIds(favorites);
+
       try {
         const response = await fetch("/api/auth/profile");
         if (!response.ok) {
@@ -86,6 +93,40 @@ export default function Profile() {
       setPasswordMessage("Unable to update password");
     }
   };
+
+
+  const retrieveFavorites = async () => {
+    try {
+      const response = await fetch("/api/auth/favorites");
+      if (!response.ok) {
+        throw new Error("Could not retrieve favorites");
+      }
+      const data = await response.json();
+      console.log("User favorites:", data);
+
+      if (!session || !session.user) {
+        console.log("No user session found.");
+        return [];
+      }
+
+      const userId = session.user.id as string;
+      console.log("User ID from session:", userId);
+      let favoriteIds = [];
+      for (const userFav of data.favorites) {
+        if (userFav.userId === userId) {
+          console.log("Match found for user ID:", userFav.userId);  
+          favoriteIds = userFav.favorites;
+        }
+      }
+      console.log("Favorite IDs for current user:", favoriteIds);
+      return favoriteIds;
+    }
+    catch (error) {
+      console.error("Error retrieving favorites:", error);
+      return [];
+    }
+  }
+
 
   // If the session is still loading, you can show a loading state
   if (status === "loading") {
@@ -212,6 +253,27 @@ export default function Profile() {
             >
               Sign Out
             </button>
+          </div>
+          
+          {/* Favorite Games */}
+
+          <div className="mt-12">
+            <h3 className="text-xl font-semibold text-black dark:text-white mb-4">Your Favorite Games</h3>  
+
+            
+            {/* filter gamecards to only ones that match the favoriteIds */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {games.filter((game) => favoriteIds.includes(game.id)).map((game) => (
+                <GameCard
+                  key={game.id}
+                  id={game.id}
+                  title={game.title}
+                  description={game.description}
+                  creator={game.creator}
+                  theme={game.theme}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
