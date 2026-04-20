@@ -14,6 +14,9 @@ const users: Array<{
 // store in a separate storage each users favourite game ids
 let userFavorites: Record<string, number[]> = {};
 
+// store in a separate storage each users friends list (array of user ids)
+let userFriends: Record<string, string[]> = {};
+
 
 export const authConfig = {
   secret: process.env.NEXTAUTH_SECRET || "your-secret-key-here",
@@ -73,4 +76,4 @@ export const authConfig = {
 } satisfies NextAuthConfig;
 
 // Export the users array for registration
-export { users, userFavorites };
+export { users, userFavorites, userFriends };

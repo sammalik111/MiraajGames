@@ -46,6 +46,9 @@ export default function Navbar() {
           <Link href="/profile" className="text-sm font-medium text-slate-300 transition hover:text-white">
             Profile
           </Link>
+          <Link href="/messages" className="text-sm font-medium text-slate-300 transition hover:text-white">
+            Messages
+          </Link>
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
