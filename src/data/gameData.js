@@ -69,4 +69,25 @@ export const games = [
     creator: "Word Games Inc",
     theme: "puzzle",
   },
+  {
+    id: 11,
+    title: "Battleship",
+    description: "Hunt down the enemy fleet in a grid-based duel against a smart computer opponent.",
+    creator: "Miraaj Games",
+    theme: "strategy",
+  },
+  {
+    id: 12,
+    title: "Minesweeper",
+    description: "Sweep the randomized minefield using number clues and flags to mark the mines.",
+    creator: "Miraaj Games",
+    theme: "puzzle",
+  },
+  {
+    id: 13,
+    title: "Sudoku",
+    description: "Fill the 9x9 grid with a freshly generated puzzle every game.",
+    creator: "Miraaj Games",
+    theme: "puzzle",
+  },
 ];

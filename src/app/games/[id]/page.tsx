@@ -10,6 +10,9 @@ import SpaceInvadersGame from "@/components/games/SpaceInvadersGame";
 import PacmanGame from "@/components/games/PacmanGame";
 import TetrisGame from "@/components/games/TetrisGame";
 import CrosswordGame from "@/components/games/CrosswordGame";
+import MinesweeperGame from "@/components/games/MinesweeperGame";
+import SodukuGame from "@/components/games/sodukuGame";
+import BattleshipGame from "@/components/games/battleshipGame";
 import Link from "next/link";
 
 export function generateStaticParams() {
@@ -64,6 +67,12 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         return <TetrisGame />;
       case 10:
         return <CrosswordGame />;
+      case 11:
+        return <BattleshipGame />;
+      case 12:
+        return <MinesweeperGame />;
+      case 13:
+        return <SodukuGame />;
       default:
         return <div className="text-center text-slate-400">Game coming soon...</div>;
     }
