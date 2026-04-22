@@ -28,7 +28,7 @@ export default function ThemeToggle() {
     return (
       <button
         aria-label="Toggle theme"
-        className="h-9 w-9 rounded-full border border-slate-300 dark:border-slate-700"
+        className="h-8 w-8 border border-[color:var(--border-strong)]"
       />
     );
   }
@@ -39,7 +39,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       title={dark ? "Switch to light mode" : "Switch to dark mode"}
-      className="h-9 w-9 rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 flex items-center justify-center"
+      className="h-8 w-8 border border-[color:var(--border-strong)] bg-[color:var(--surface)] text-[color:var(--fg)] transition flex items-center justify-center hover:ring-cyan"
     >
       {dark ? (
         // Sun

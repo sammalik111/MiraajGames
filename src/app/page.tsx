@@ -1,75 +1,135 @@
 import GameCard from "@/components/gameCard";
+import HudPanel from "@/components/HudPanel";
 import { games } from "@/data/gameData";
 import Navbar from "@/components/navbar";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="min-h-screen text-[color:var(--fg)]">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
-        <section className="grid gap-10 md:grid-cols-[1.4fr_1fr] items-center">
-          <div className="space-y-6">
-            <span className="inline-flex items-center rounded-full bg-violet-500/15 px-4 py-2 text-sm font-semibold text-violet-700 ring-1 ring-violet-500/30 dark:text-violet-100 dark:ring-violet-400/20">
-              New design · curated library · interactive demos
-            </span>
+      <main className="relative z-10 max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        {/* Hero */}
+        <section className="grid gap-10 md:grid-cols-[1.3fr_1fr] items-center">
+          <div className="space-y-7">
+            <div className="flex flex-wrap gap-2">
+              <span className="hud-chip">
+                <span className="text-[color:var(--neon-cyan)]">●</span> Link Established
+              </span>
+              <span className="hud-chip">
+                v2.0.4 · nightly
+              </span>
+            </div>
+
             <div className="space-y-4">
-              <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-                Miraaj Games
+              <h1 className="font-display font-black text-5xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-tight">
+                <span className="text-[color:var(--fg)]">MIRAAJ</span>
+                <span className="text-[color:var(--neon-magenta)] dark:glow-magenta">//</span>
+                <span className="text-[color:var(--neon-cyan)] dark:glow-cyan">GAMES</span>
               </h1>
-              <p className="max-w-xl text-lg leading-8 text-slate-600 dark:text-slate-300">
-                A modern gaming hub built with Next.js. Discover mini-games, save favorites, and launch interactive demos instantly.
+              <p className="max-w-xl text-lg leading-8 text-[color:var(--fg-muted)]">
+                A curated arcade of mini-games with a cyberpunk paint job. Browse the library,
+                save your favorites, and drop in — no downloads.
               </p>
             </div>
+
             <div className="flex flex-wrap gap-3">
               <a
                 href="#games"
-                className="inline-flex items-center justify-center rounded-full bg-violet-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400"
+                className="font-mono text-xs uppercase tracking-[0.2em] px-5 py-3 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
               >
-                Browse Games
+                Enter Arcade →
               </a>
               <a
                 href="/auth/signin"
-                className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:border-slate-500"
+                className="font-mono text-xs uppercase tracking-[0.2em] px-5 py-3 border border-[color:var(--border-strong)] text-[color:var(--fg)] hover:ring-magenta transition"
               >
-                Sign In
+                Authenticate
               </a>
             </div>
+
+            {/* Quick stat rail */}
+            <dl className="grid grid-cols-3 gap-3 pt-4 border-t border-[color:var(--border)]">
+              {[
+                { label: "Cabinets", value: games.length.toString().padStart(2, "0"), accent: "cyan" },
+                { label: "Uptime", value: "99.9%", accent: "magenta" },
+                { label: "Players", value: "1.2K", accent: "yellow" },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                    {stat.label}
+                  </dt>
+                  <dd className={`font-display font-bold text-2xl mt-1 text-${stat.accent} dark:glow-${stat.accent}`}>
+                    {stat.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
 
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-300/40 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/40">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">Featured game</p>
-                  <h2 className="text-3xl font-bold">Mario Platformer</h2>
-                </div>
-                <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                  10 games
-                </div>
+          {/* Featured panel — HUD style */}
+          <HudPanel accent="magenta" innerClassName="p-6 space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                  &gt; Featured Cabinet
+                </p>
+                <h2 className="font-display font-bold text-2xl mt-2 text-[color:var(--fg)]">
+                  Mario Platformer
+                </h2>
               </div>
-              <div className="grid gap-4 rounded-3xl border border-slate-200 bg-gradient-to-br from-violet-100 to-slate-50 p-6 text-slate-700 dark:border-slate-800 dark:from-violet-950/90 dark:to-slate-900/80 dark:text-slate-300">
-                <div className="rounded-3xl bg-white/90 p-5 shadow-inner shadow-slate-200/60 dark:bg-slate-950/90 dark:shadow-slate-900/30">
-                  <p className="text-sm text-slate-500">Platformer with classic vibes and responsive controls.</p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-white/90 p-4 text-sm text-slate-700 dark:bg-slate-950/90 dark:text-slate-300">Explore dynamic levels</div>
-                  <div className="rounded-3xl bg-white/90 p-4 text-sm text-slate-700 dark:bg-slate-950/90 dark:text-slate-300">Save favorites automatically</div>
-                </div>
+              <div className="text-right">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">Status</p>
+                <p className="font-mono text-sm text-[color:var(--neon-cyan)] dark:glow-cyan mt-1">
+                  <span className="blink">●</span> LIVE
+                </p>
               </div>
             </div>
-          </div>
+
+            {/* Terminal readout */}
+            <div className="border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 font-term text-xl leading-6 text-[color:var(--neon-lime)] scanline-overlay">
+              &gt; Loading level 1-1...<br />
+              &gt; Physics engine: ready<br />
+              &gt; Controls: mapped<br />
+              &gt; Ready<span className="blink">_</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { k: "Genre", v: "Platformer" },
+                { k: "Difficulty", v: "Casual" },
+                { k: "Co-op", v: "Solo" },
+                { k: "Input", v: "Keyboard" },
+              ].map((item) => (
+                <div key={item.k} className="border-l-2 border-[color:var(--neon-cyan)] pl-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+                    {item.k}
+                  </p>
+                  <p className="text-sm text-[color:var(--fg)]">{item.v}</p>
+                </div>
+              ))}
+            </div>
+          </HudPanel>
         </section>
 
-        <section id="games" className="mt-16">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        {/* Library */}
+        <section id="games" className="mt-20">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between pb-4 border-b border-[color:var(--border)]">
             <div>
-              <h2 className="text-3xl font-bold">Game Collection</h2>
-              <p className="max-w-2xl text-slate-500 dark:text-slate-400">Tap into a growing collection of demo experiences, from strategy to arcade and classic sports.</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                ┌─ Section 02
+              </p>
+              <h2 className="font-display font-bold text-3xl mt-2 text-[color:var(--fg)]">
+                Game Library
+              </h2>
+              <p className="max-w-2xl text-[color:var(--fg-muted)] mt-1">
+                {games.length} playable cabinets. Sorted by cabinet ID.
+              </p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/80 dark:text-slate-300 dark:ring-slate-700">
-              {games.length} games available
-            </div>
+            <span className="hud-chip">
+              <span className="text-[color:var(--neon-cyan)] blink">●</span>
+              {games.length} available
+            </span>
           </div>
 
           <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">

@@ -1,6 +1,7 @@
 "use client";
 
 import Navbar from "@/components/navbar";
+import HudPanel from "@/components/HudPanel";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -22,6 +23,7 @@ interface Friend {
   image?: string;
 }
 
+// Neon monogram avatar — picks a deterministic accent from the name.
 function Avatar({ name, image, size = 48 }: { name: string; image?: string; size?: number }) {
   const initials = name
     .split(" ")
@@ -29,25 +31,29 @@ function Avatar({ name, image, size = 48 }: { name: string; image?: string; size
     .join("")
     .toUpperCase()
     .slice(0, 2);
-  const colors = [
-    "bg-blue-500", "bg-purple-500", "bg-green-500",
-    "bg-rose-500", "bg-amber-500", "bg-teal-500",
-  ];
-  const color = colors[name.charCodeAt(0) % colors.length];
+  const accents = ["var(--neon-cyan)", "var(--neon-magenta)", "var(--neon-yellow)", "var(--neon-lime)"];
+  const accent = accents[name.charCodeAt(0) % accents.length];
+
   if (image) {
     return (
       <img
         src={image}
         alt={name}
-        className="rounded-full object-cover flex-shrink-0"
+        className="object-cover flex-shrink-0 hud-clip"
         style={{ width: size, height: size }}
       />
     );
   }
   return (
     <div
-      className={`rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold ${color}`}
-      style={{ width: size, height: size, fontSize: size * 0.35 }}
+      className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black text-black"
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.34,
+        background: accent,
+        boxShadow: `0 0 14px -4px ${accent}`,
+      }}
     >
       {initials}
     </div>
@@ -78,8 +84,8 @@ export default function Profile() {
 
     const load = async () => {
       setLoadingProfile(true);
-      const favorites = await retrieveFavorites();
-      setFavoriteIds(favorites);
+      const favs = await retrieveFavorites();
+      setFavoriteIds(favs);
       try {
         const res = await fetch("/api/auth/profile");
         if (!res.ok) throw new Error();
@@ -100,7 +106,7 @@ export default function Profile() {
         const data = await res.json();
         setFriends(data.friends ?? []);
       } catch {
-        // silently fail
+        /* silent */
       } finally {
         setLoadingFriends(false);
       }
@@ -119,9 +125,14 @@ export default function Profile() {
         body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
       });
       const data = await res.json();
-      if (!res.ok) { setPasswordMessage(data.error || "Unable to update password"); return; }
+      if (!res.ok) {
+        setPasswordMessage(data.error || "Unable to update password");
+        return;
+      }
       setPasswordMessage("Password updated successfully.");
-      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch {
       setPasswordMessage("Unable to update password");
     }
@@ -145,92 +156,119 @@ export default function Profile() {
 
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-lg text-gray-600">Loading...</p>
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="flex items-center justify-center py-40">
+          <p className="font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+            <span className="blink">●</span> Establishing link...
+          </p>
+        </div>
       </div>
     );
   }
 
+  const userName = session?.user?.name || "Operator";
+  const userEmail = session?.user?.email || "unknown@mesh";
+  const userId = session?.user?.id as string | undefined;
+  const favCount = profileStats?.favoriteCount ?? 0;
+  const tier = favCount > 3 ? "Pro" : "Starter";
+
+  const favoriteGames = games.filter((g) => favoriteIds.includes(g.id));
+
   return (
-    <div>
+    <div className="min-h-screen text-[color:var(--fg)]">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <h1 className="text-4xl font-bold text-center mb-12 text-black dark:text-white">
-          User Profile
-        </h1>
+      <main className="relative z-10 max-w-5xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-10">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+            ┌─ Section 01 · Operator Profile
+          </p>
+          <h1 className="font-display font-black text-4xl sm:text-5xl mt-3 tracking-tight text-[color:var(--fg)]">
+            <span className="text-[color:var(--neon-magenta)] dark:glow-magenta">//</span>{" "}
+            {userName.toUpperCase()}
+          </h1>
+        </div>
 
-        <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg p-8">
-          {/* User Info */}
-          <div className="flex items-center gap-6 mb-8">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold">
-              U
-            </div>
-            <div>
-              <h2 className="text-3xl font-semibold text-black dark:text-white">
-                {session?.user?.name || "Demo User"}
+        {/* Identity card */}
+        <HudPanel innerClassName="p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+            <Avatar name={userName} size={88} />
+            <div className="flex-1 min-w-0">
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                &gt; Handle
+              </p>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl text-[color:var(--fg)] mt-1 truncate">
+                {userName}
               </h2>
-              <p className="text-lg text-zinc-600 dark:text-zinc-400">
-                {session?.user?.email || "demo@example.com"}
-              </p>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                My Friend ID: {session?.user?.id}
-              </p>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8 py-8 border-t border-b border-zinc-200 dark:border-zinc-800">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{loadingProfile ? "—" : profileStats?.gamesPlayed ?? "—"}</p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Games Played</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{loadingProfile ? "—" : profileStats?.achievements ?? "—"}</p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Achievements</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-600">{loadingProfile ? "—" : profileStats?.points ?? "—"}</p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Points</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 mb-8 text-center text-sm text-zinc-600 dark:text-zinc-400">
-            <div className="rounded-3xl bg-slate-100/80 dark:bg-zinc-800 p-4">
-              <p className="font-semibold text-slate-900 dark:text-slate-100">Favorites</p>
-              <p className="mt-2 text-2xl font-bold text-violet-600">{loadingProfile ? "—" : profileStats?.favoriteCount ?? "—"}</p>
-            </div>
-            <div className="rounded-3xl bg-slate-100/80 dark:bg-zinc-800 p-4">
-              <p className="font-semibold text-slate-900 dark:text-slate-100">Member Tier</p>
-              <p className="mt-2 text-2xl font-bold text-sky-600">{profileStats?.favoriteCount && profileStats.favoriteCount > 3 ? "Pro" : "Starter"}</p>
-            </div>
-            <div className="rounded-3xl bg-slate-100/80 dark:bg-zinc-800 p-4">
-              <p className="font-semibold text-slate-900 dark:text-slate-100">Activity</p>
-              <p className="mt-2 text-2xl font-bold text-emerald-600">{loadingProfile ? "—" : `${profileStats?.favoriteCount ?? 0} favs`}</p>
-            </div>
-          </div>
-
-          {/* Friends */}
-          <div className="mb-10">
-            <h3 className="text-xl font-semibold text-black dark:text-white mb-4">
-              Friends
-              {!loadingFriends && friends.length > 0 && (
-                <span className="ml-2 text-sm font-normal text-zinc-400">{friends.length}</span>
+              <p className="text-sm text-[color:var(--fg-muted)] mt-1 truncate">{userEmail}</p>
+              {userId && (
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--fg-muted)] mt-3">
+                  id&nbsp;::&nbsp;
+                  <span className="text-[color:var(--neon-cyan)] dark:glow-cyan normal-case tracking-normal">
+                    {userId}
+                  </span>
+                </p>
               )}
-            </h3>
+            </div>
+            <div className="hud-chip self-start sm:self-center">
+              <span className="text-[color:var(--neon-cyan)]">●</span> Tier · {tier}
+            </div>
+          </div>
+
+          {/* Stat rail */}
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-[color:var(--border)]">
+            {[
+              { label: "Games Played", value: profileStats?.gamesPlayed, accent: "cyan" },
+              { label: "Achievements", value: profileStats?.achievements, accent: "magenta" },
+              { label: "Points", value: profileStats?.points, accent: "yellow" },
+              { label: "Favorites", value: profileStats?.favoriteCount, accent: "lime" },
+            ].map((stat) => (
+              <div key={stat.label} className="border-l-2 border-[color:var(--border-strong)] pl-3">
+                <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                  {stat.label}
+                </dt>
+                <dd
+                  className={`font-display font-bold text-2xl mt-1 text-${stat.accent} dark:glow-${stat.accent}`}
+                >
+                  {loadingProfile ? "—" : (stat.value ?? "—")}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </HudPanel>
+
+        {/* Friends */}
+        <section className="mt-12">
+          <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                ┌─ Network · Allies
+              </p>
+              <h3 className="font-display font-bold text-2xl mt-2 text-[color:var(--fg)]">
+                Friends
+              </h3>
+            </div>
+            {!loadingFriends && friends.length > 0 && (
+              <span className="hud-chip">{friends.length} linked</span>
+            )}
+          </div>
+
+          <div className="mt-6">
             {loadingFriends ? (
               <div className="flex gap-5 overflow-x-auto pb-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0 animate-pulse">
-                    <div className="w-14 h-14 rounded-full bg-slate-200 dark:bg-zinc-800" />
-                    <div className="h-3 w-10 bg-slate-200 dark:bg-zinc-800 rounded" />
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex flex-col items-center gap-2 flex-shrink-0 animate-pulse">
+                    <div className="w-14 h-14 hud-clip bg-[color:var(--surface-2)]" />
+                    <div className="h-2 w-12 bg-[color:var(--surface-2)]" />
                   </div>
                 ))}
               </div>
             ) : friends.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                No friends yet.{" "}
-                <Link href="/messages" className="text-blue-500 hover:underline">
-                  Add some from the Messages page.
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+                &gt; No allies linked.{" "}
+                <Link href="/messages" className="text-[color:var(--neon-cyan)] dark:glow-cyan hover:underline">
+                  Find some in Messages
                 </Link>
               </p>
             ) : (
@@ -239,12 +277,10 @@ export default function Profile() {
                   <Link
                     key={friend.id}
                     href={`/messages/${friend.id}`}
-                    className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
+                    className="flex flex-col items-center gap-2 flex-shrink-0 group"
                   >
-                    <div className="ring-2 ring-transparent group-hover:ring-blue-500 rounded-full transition-all">
-                      <Avatar name={friend.name} image={friend.image} size={56} />
-                    </div>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400 group-hover:text-blue-500 transition-colors max-w-[60px] truncate text-center">
+                    <Avatar name={friend.name} image={friend.image} size={60} />
+                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)] group-hover:text-[color:var(--neon-cyan)] transition-colors max-w-[72px] truncate text-center">
                       {friend.name}
                     </span>
                   </Link>
@@ -252,60 +288,91 @@ export default function Profile() {
               </div>
             )}
           </div>
+        </section>
 
-          {/* Account Settings */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-black dark:text-white mb-4">Account Settings</h3>
-            <button className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-              Edit Profile
-            </button>
+        {/* Account */}
+        <section className="mt-12">
+          <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                ┌─ Account · Controls
+              </p>
+              <h3 className="font-display font-bold text-2xl mt-2 text-[color:var(--fg)]">
+                Settings
+              </h3>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <button
               onClick={() => setShowPasswordForm((v) => !v)}
-              className="w-full px-4 py-2 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-black dark:text-white font-medium rounded-lg transition-colors"
+              className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--border-strong)] text-[color:var(--fg)] hover:ring-cyan transition"
             >
-              {showPasswordForm ? "Hide Password Form" : "Change Password"}
+              {showPasswordForm ? "Close · Password Form" : "Rotate Credentials"}
             </button>
-            {showPasswordForm && (
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 dark:border-zinc-800 dark:bg-zinc-950">
-                <div className="space-y-4">
-                  {[
-                    { label: "Current Password", value: currentPassword, set: setCurrentPassword },
-                    { label: "New Password", value: newPassword, set: setNewPassword },
-                    { label: "Confirm Password", value: confirmPassword, set: setConfirmPassword },
-                  ].map(({ label, value, set }) => (
-                    <div key={label}>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
-                      <input
-                        type="password"
-                        value={value}
-                        onChange={(e) => set(e.target.value)}
-                        className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-slate-100"
-                      />
-                    </div>
-                  ))}
-                  <button
-                    onClick={handlePasswordChange}
-                    className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400"
-                  >
-                    Save Password
-                  </button>
-                  {passwordMessage && <p className="text-sm text-slate-500 dark:text-slate-400">{passwordMessage}</p>}
-                </div>
-              </div>
-            )}
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+              className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--neon-magenta)] text-[color:var(--neon-magenta)] hover:ring-magenta transition"
             >
-              Sign Out
+              Disconnect · Sign Out
             </button>
           </div>
 
-          {/* Favorite Games */}
-          <div className="mt-12">
-            <h3 className="text-xl font-semibold text-black dark:text-white mb-4">Your Favorite Games</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {games.filter((game) => favoriteIds.includes(game.id)).map((game) => (
+          {showPasswordForm && (
+            <HudPanel className="mt-6" innerClassName="p-6 space-y-4">
+              {[
+                { label: "Current Password", value: currentPassword, set: setCurrentPassword },
+                { label: "New Password", value: newPassword, set: setNewPassword },
+                { label: "Confirm Password", value: confirmPassword, set: setConfirmPassword },
+              ].map(({ label, value, set }) => (
+                <div key={label}>
+                  <label className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                    {label}
+                  </label>
+                  <input
+                    type="password"
+                    value={value}
+                    onChange={(e) => set(e.target.value)}
+                    className="mt-2 w-full bg-[color:var(--surface-2)] border border-[color:var(--border-strong)] px-4 py-3 text-sm text-[color:var(--fg)] outline-none focus:border-[color:var(--neon-cyan)] transition"
+                  />
+                </div>
+              ))}
+              <button
+                onClick={handlePasswordChange}
+                className="w-full font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
+              >
+                Commit New Key →
+              </button>
+              {passwordMessage && (
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+                  &gt; {passwordMessage}
+                </p>
+              )}
+            </HudPanel>
+          )}
+        </section>
+
+        {/* Favorites */}
+        <section className="mt-12">
+          <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                ┌─ Cache · Favorites
+              </p>
+              <h3 className="font-display font-bold text-2xl mt-2 text-[color:var(--fg)]">
+                Saved Cabinets
+              </h3>
+            </div>
+            <span className="hud-chip">{favoriteGames.length} saved</span>
+          </div>
+
+          {favoriteGames.length === 0 ? (
+            <p className="mt-6 font-mono text-xs uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+              &gt; Cache empty. Mark cabinets with ☆ from the library.
+            </p>
+          ) : (
+            <div className="mt-8 grid gap-6 sm:grid-cols-2">
+              {favoriteGames.map((game) => (
                 <GameCard
                   key={game.id}
                   id={game.id}
@@ -316,9 +383,9 @@ export default function Profile() {
                 />
               ))}
             </div>
-          </div>
-        </div>
-      </div>
+          )}
+        </section>
+      </main>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
+import HudPanel from "@/components/HudPanel";
 
 interface GameCardProps {
   id: number;
@@ -13,14 +14,15 @@ interface GameCardProps {
   theme: string;
 }
 
-const themeStyles: Record<string, string> = {
-  platformer: "from-orange-500 via-rose-500 to-pink-500",
-  pool: "from-sky-500 via-cyan-500 to-teal-500",
-  shooter: "from-emerald-500 via-lime-500 to-yellow-500",
-  chess: "from-slate-600 via-slate-500 to-slate-400",
-  puzzle: "from-fuchsia-500 via-violet-500 to-indigo-500",
-  strategy: "from-blue-500 via-indigo-500 to-purple-500",
-  arcade: "from-red-500 via-pink-500 to-rose-500",
+// Map each theme tag to a neon accent color var.
+const themeAccent: Record<string, string> = {
+  platformer: "var(--neon-magenta)",
+  pool: "var(--neon-cyan)",
+  shooter: "var(--neon-lime)",
+  chess: "var(--fg-muted)",
+  puzzle: "var(--neon-yellow)",
+  strategy: "var(--neon-cyan)",
+  arcade: "var(--neon-magenta)",
 };
 
 export default function GameCard({
@@ -51,6 +53,7 @@ export default function GameCard({
   }, [sessionFavorites]);
 
   const isFavorited = favoriteIds.includes(id);
+  const accent = themeAccent[theme] ?? "var(--neon-cyan)";
 
   const handleFavorite = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -67,9 +70,7 @@ export default function GameCard({
     try {
       const response = await fetch("/api/auth/favorite", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gameId: id }),
       });
 
@@ -80,11 +81,10 @@ export default function GameCard({
       }
 
       if (data.action === "removed") {
-        setFavoriteIds((prev) => prev.filter((favoriteId) => favoriteId !== id));
+        setFavoriteIds((prev) => prev.filter((fid) => fid !== id));
       } else {
         setFavoriteIds((prev) => Array.from(new Set([...prev, id])));
       }
-
       setMessage(data.action === "removed" ? "Removed from favorites" : "Added to favorites");
       router.refresh();
     } catch (error) {
@@ -96,30 +96,46 @@ export default function GameCard({
   };
 
   return (
-    <Link href={`/games/${id}`}>
-      <div className="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl shadow-slate-300/40 transition-transform duration-300 hover:-translate-y-1 hover:shadow-violet-500/20 dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-black/20">
-        <div className={`h-48 bg-gradient-to-br ${themeStyles[theme] ?? "from-slate-700 via-slate-800 to-slate-900"} p-6`}>
-          <div className="flex h-full flex-col justify-between text-white">
-            <div className="flex items-center justify-between gap-4">
-              <span className="rounded-full bg-white/15 px-3 py-1 text-sm uppercase tracking-[0.3em] text-white/90">
-                {title.split(" ")[0]}
-              </span>
-              <div className="h-12 w-12 rounded-3xl bg-white/10 backdrop-blur-xl" />
-            </div>
-            <div className="space-y-2">
-              <p className="text-2xl font-bold leading-tight">{title}</p>
-              <p className="max-w-[80%] text-sm text-white/80">{description}</p>
-            </div>
-          </div>
+    <Link href={`/games/${id}`} className="block group">
+      <HudPanel innerClassName="p-0 flex flex-col">
+        {/* Header strip — accent-tinted band with cabinet id */}
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--border)]"
+          style={{
+            background: `linear-gradient(90deg, color-mix(in srgb, ${accent} 14%, transparent) 0%, transparent 70%)`,
+          }}
+        >
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em]" style={{ color: accent }}>
+            ▸ {theme}
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+            cab#{String(id).padStart(2, "0")}
+          </span>
         </div>
 
-        <div className="space-y-4 px-6 pb-6 pt-4">
-          <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
-            <span>By {creator}</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{isFavorited ? "★" : "☆"}</span>
+        {/* Body */}
+        <div className="p-5 space-y-4 flex-1 flex flex-col">
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className="mt-1 h-10 w-1 shrink-0"
+              style={{ background: accent, boxShadow: `0 0 10px -2px ${accent}` }}
+            />
+            <div className="min-w-0">
+              <h3 className="font-display font-bold text-lg leading-tight text-[color:var(--fg)] group-hover:text-[color:var(--neon-cyan)] transition-colors">
+                {title}
+              </h3>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--fg-muted)] mt-1">
+                by {creator}
+              </p>
+            </div>
           </div>
 
-          <div className="grid gap-3">
+          <p className="text-sm leading-6 text-[color:var(--fg-muted)] line-clamp-3">
+            {description}
+          </p>
+
+          <div className="flex items-center gap-2 pt-2 mt-auto border-t border-[color:var(--border)]">
             <button
               type="button"
               onClick={(event) => {
@@ -127,23 +143,32 @@ export default function GameCard({
                 event.stopPropagation();
                 router.push(`/games/${id}`);
               }}
-              className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+              className="flex-1 font-mono text-xs uppercase tracking-[0.2em] px-4 py-2.5 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
             >
-              Launch Game
+              Launch →
             </button>
             <button
               type="button"
               onClick={handleFavorite}
               disabled={isFavoriting}
-              className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${isFavorited ? "bg-emerald-500 text-white hover:bg-emerald-400" : "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"}`}
+              aria-label={isFavorited ? "Unfavorite" : "Favorite"}
+              className={`font-mono text-xs uppercase tracking-[0.2em] px-3 py-2.5 border transition ${
+                isFavorited
+                  ? "border-[color:var(--neon-magenta)] text-[color:var(--neon-magenta)] hover:ring-magenta"
+                  : "border-[color:var(--border-strong)] text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] hover:ring-cyan"
+              }`}
             >
-              {isFavorited ? "Favorited" : "Add to favorites"}
+              {isFavorited ? "★" : "☆"}
             </button>
           </div>
 
-          {message && <p className="text-xs text-slate-500 dark:text-slate-400">{message}</p>}
+          {message && (
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)]">
+              &gt; {message}
+            </p>
+          )}
         </div>
-      </div>
+      </HudPanel>
     </Link>
   );
 }

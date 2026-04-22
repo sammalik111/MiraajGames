@@ -1,80 +1,226 @@
 @import "tailwindcss";
 
-/* Class-based dark mode: .dark on <html> opts every `dark:` utility in. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* -----------------------------------------------------------------------------
+   Cyberpunk HUD theme
+   Readable body text + neon accents + chamfered HUD panels.
+----------------------------------------------------------------------------- */
+
 :root {
-  --bg: #f8fafc;
-  --bg-grad-1: rgba(99, 102, 241, 0.08);
-  --bg-grad-2: rgba(59, 130, 246, 0.06);
-  --bg-grad-3: #f1f5f9;
-  --fg: #0f172a;
-  --selection-bg: rgba(124, 58, 237, 0.25);
-  --selection-fg: #0f172a;
-  --scrollbar-track: rgba(226, 232, 240, 0.6);
-  --scrollbar-thumb: rgba(99, 102, 241, 0.55);
-  --placeholder: rgba(15, 23, 42, 0.5);
+  /* Light "augmented daytime" */
+  --neon-cyan: #0096a7;
+  --neon-magenta: #d11a6a;
+  --neon-yellow: #b58900;
+  --neon-lime: #4a8a00;
+
+  --bg: #f5f6fa;
+  --bg-grad-1: rgba(0, 150, 167, 0.05);
+  --bg-grad-2: rgba(209, 26, 106, 0.04);
+  --bg-grad-3: #eceef5;
+  --grid-line: rgba(12, 20, 34, 0.05);
+
+  --fg: #0c1422;
+  --fg-muted: #4a5568;
+  --surface: #ffffff;
+  --surface-2: #f7f8fb;
+  --border: rgba(12, 20, 34, 0.12);
+  --border-strong: rgba(12, 20, 34, 0.28);
+
+  --selection-bg: rgba(0, 150, 167, 0.25);
+  --selection-fg: #0c1422;
+  --scrollbar-track: rgba(12, 20, 34, 0.06);
+  --scrollbar-thumb: var(--neon-cyan);
+  --placeholder: rgba(12, 20, 34, 0.45);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #050816;
-  --bg-grad-1: rgba(79, 70, 229, 0.18);
-  --bg-grad-2: rgba(59, 130, 246, 0.14);
-  --bg-grad-3: #070b18;
-  --fg: #e2e8f0;
-  --selection-bg: rgba(126, 34, 206, 0.35);
-  --selection-fg: white;
-  --scrollbar-track: rgba(15, 23, 42, 0.5);
-  --scrollbar-thumb: rgba(79, 70, 229, 0.55);
-  --placeholder: rgba(226, 232, 240, 0.6);
+  --neon-cyan: #00f0ff;
+  --neon-magenta: #ff2a6d;
+  --neon-yellow: #fff200;
+  --neon-lime: #b4ff39;
+
+  --bg: #070b17;
+  --bg-grad-1: rgba(0, 240, 255, 0.07);
+  --bg-grad-2: rgba(255, 42, 109, 0.06);
+  --bg-grad-3: #040712;
+  --grid-line: rgba(0, 240, 255, 0.04);
+
+  --fg: #e8ecf4;
+  --fg-muted: #8a93a6;
+  --surface: #0d1324;
+  --surface-2: #121a31;
+  --border: rgba(0, 240, 255, 0.18);
+  --border-strong: rgba(0, 240, 255, 0.45);
+
+  --selection-bg: rgba(0, 240, 255, 0.3);
+  --selection-fg: #070b17;
+  --scrollbar-track: rgba(255, 255, 255, 0.03);
+  --scrollbar-thumb: var(--neon-cyan);
+  --placeholder: rgba(232, 236, 244, 0.5);
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 
-html {
-  scroll-behavior: smooth;
-  min-height: 100%;
-}
+html { scroll-behavior: smooth; min-height: 100%; }
 
 body {
   margin: 0;
   min-height: 100vh;
+  position: relative;
   background:
-    radial-gradient(circle at top, var(--bg-grad-1), transparent 35%),
-    radial-gradient(circle at 20% 30%, var(--bg-grad-2), transparent 20%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg) 36%, var(--bg-grad-3) 100%);
+    radial-gradient(ellipse at top right, var(--bg-grad-1), transparent 45%),
+    radial-gradient(ellipse at bottom left, var(--bg-grad-2), transparent 45%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg) 50%, var(--bg-grad-3) 100%);
   color: var(--fg);
-  font-family: var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, sans-serif);
+  font-family: var(--font-geist-sans, Inter, ui-sans-serif, system-ui, sans-serif);
   transition: background-color 200ms ease, color 200ms ease;
 }
 
-::selection {
-  background: var(--selection-bg);
-  color: var(--selection-fg);
+/* Subtle tech grid overlay — much lighter than arcade scanlines */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at center, black 60%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 60%, transparent 100%);
 }
 
+::selection { background: var(--selection-bg); color: var(--selection-fg); }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 ::placeholder { color: var(--placeholder); }
 
-body::-webkit-scrollbar { width: 14px; }
+body::-webkit-scrollbar { width: 10px; }
 body::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 body::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 9999px;
-  border: 4px solid transparent;
-  background-clip: content-box;
+  border-radius: 0;
+}
+
+/* -----------------------------------------------------------------------------
+   Font utilities
+----------------------------------------------------------------------------- */
+.font-display { font-family: var(--font-display), "Orbitron", "Space Grotesk", sans-serif; letter-spacing: 0.02em; }
+.font-mono    { font-family: var(--font-mono-tech), "JetBrains Mono", ui-monospace, monospace; }
+.font-term    { font-family: var(--font-term), "VT323", monospace; }
+
+/* -----------------------------------------------------------------------------
+   Neon utilities — restrained: thin borders, small glows.
+----------------------------------------------------------------------------- */
+.text-cyan    { color: var(--neon-cyan); }
+.text-magenta { color: var(--neon-magenta); }
+.text-yellow  { color: var(--neon-yellow); }
+.text-lime    { color: var(--neon-lime); }
+
+.dark .glow-cyan    { text-shadow: 0 0 8px rgba(0, 240, 255, 0.55); }
+.dark .glow-magenta { text-shadow: 0 0 8px rgba(255, 42, 109, 0.55); }
+
+.ring-cyan    { box-shadow: 0 0 0 1px var(--neon-cyan), 0 0 18px -2px color-mix(in srgb, var(--neon-cyan) 40%, transparent); }
+.ring-magenta { box-shadow: 0 0 0 1px var(--neon-magenta), 0 0 18px -2px color-mix(in srgb, var(--neon-magenta) 40%, transparent); }
+
+/* -----------------------------------------------------------------------------
+   HUD panel — chamfered corners via clip-path. Two-layer for 1px "border".
+   Use as:
+     <div class="hud-panel"><div class="hud-panel-inner">...</div></div>
+----------------------------------------------------------------------------- */
+.hud-clip {
+  clip-path: polygon(
+    0 12px, 12px 0,
+    calc(100% - 4px) 0, 100% 4px,
+    100% calc(100% - 12px), calc(100% - 12px) 100%,
+    4px 100%, 0 calc(100% - 4px)
+  );
+}
+
+.hud-panel {
+  position: relative;
+  background: var(--border-strong);
+  padding: 1px;
+  clip-path: polygon(
+    0 12px, 12px 0,
+    calc(100% - 4px) 0, 100% 4px,
+    100% calc(100% - 12px), calc(100% - 12px) 100%,
+    4px 100%, 0 calc(100% - 4px)
+  );
+  transition: background 160ms ease;
+}
+.hud-panel:hover { background: var(--neon-cyan); }
+
+.hud-panel-inner {
+  background: var(--surface);
+  clip-path: polygon(
+    0 11px, 11px 0,
+    calc(100% - 3px) 0, 100% 3px,
+    100% calc(100% - 11px), calc(100% - 11px) 100%,
+    3px 100%, 0 calc(100% - 3px)
+  );
+  height: 100%;
+}
+
+/* HUD panel with magenta accent variant */
+.hud-panel-magenta:hover { background: var(--neon-magenta); }
+
+/* Tagline chip — small sharp pill with bracket vibe */
+.hud-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  font-family: var(--font-mono-tech), "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+/* Corner bracket decoration — use on top-left of a panel header */
+.hud-bracket::before {
+  content: "┌─";
+  font-family: var(--font-mono-tech), monospace;
+  color: var(--neon-cyan);
+  margin-right: 0.4rem;
+  opacity: 0.7;
+}
+
+/* Blinking cursor */
+@keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0.15; } }
+.blink { animation: blink 1.05s steps(2, end) infinite; }
+
+/* Subtle scanline for HUD panels — way less intense than arcade */
+.scanline-overlay {
+  position: relative;
+}
+.scanline-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0 3px,
+    rgba(255, 255, 255, 0.02) 3px 4px
+  );
+  mix-blend-mode: overlay;
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .blink { animation: none !important; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
