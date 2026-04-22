@@ -145,7 +145,7 @@ export default function MessagePage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <Navbar />
         <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>
       </div>
@@ -154,7 +154,7 @@ export default function MessagePage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <Navbar />
         <div className="container mx-auto p-8 text-center">
           <p className="text-slate-400">Please sign in to view your messages.</p>
@@ -164,7 +164,7 @@ export default function MessagePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <Navbar />
       <main className="mx-auto max-w-3xl px-4 py-6">
         <div className="mb-4 flex items-center justify-between">
@@ -174,7 +174,7 @@ export default function MessagePage() {
           <h1 className="text-xl font-semibold">Chat with {friendObject?.name}</h1>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-slate-950/30">
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-300/40 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-slate-950/30">
           <div ref={scrollRef} className="h-[60vh] overflow-y-auto px-5 py-4 space-y-4">
             {nextBefore !== null && (
               <div className="text-center">
@@ -200,7 +200,7 @@ export default function MessagePage() {
                         className={`px-4 py-2 rounded-2xl text-sm ${
                           mine
                             ? "bg-violet-500 text-white rounded-br-sm"
-                            : "bg-slate-800 text-slate-100 rounded-bl-sm"
+                            : "bg-slate-100 text-slate-900 rounded-bl-sm dark:bg-slate-800 dark:text-slate-100"
                         }`}
                       >
                         <p className="whitespace-pre-wrap break-words">{m.content}</p>
@@ -220,14 +220,14 @@ export default function MessagePage() {
             })}
           </div>
 
-          <form onSubmit={send} className="border-t border-slate-800 px-4 py-3 flex gap-2">
+          <form onSubmit={send} className="border-t border-slate-200 px-4 py-3 flex gap-2 dark:border-slate-800">
             <input
               type="text"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Type a message…"
               disabled={!conversation || sending}
-              className="flex-1 rounded-full bg-slate-800 px-4 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+              className="flex-1 rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-100"
             />
             <button
               type="submit"

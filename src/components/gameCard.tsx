@@ -97,7 +97,7 @@ export default function GameCard({
 
   return (
     <Link href={`/games/${id}`}>
-      <div className="group overflow-hidden rounded-[1.75rem] border border-slate-800 bg-slate-900/95 shadow-2xl shadow-black/20 transition-transform duration-300 hover:-translate-y-1 hover:shadow-violet-500/20">
+      <div className="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl shadow-slate-300/40 transition-transform duration-300 hover:-translate-y-1 hover:shadow-violet-500/20 dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-black/20">
         <div className={`h-48 bg-gradient-to-br ${themeStyles[theme] ?? "from-slate-700 via-slate-800 to-slate-900"} p-6`}>
           <div className="flex h-full flex-col justify-between text-white">
             <div className="flex items-center justify-between gap-4">
@@ -114,9 +114,9 @@ export default function GameCard({
         </div>
 
         <div className="space-y-4 px-6 pb-6 pt-4">
-          <div className="flex items-center justify-between text-sm text-slate-400">
+          <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
             <span>By {creator}</span>
-            <span className="rounded-full bg-slate-800 px-3 py-1 text-slate-300">{isFavorited ? "★" : "☆"}</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{isFavorited ? "★" : "☆"}</span>
           </div>
 
           <div className="grid gap-3">
@@ -127,7 +127,7 @@ export default function GameCard({
                 event.stopPropagation();
                 router.push(`/games/${id}`);
               }}
-              className="w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
+              className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
             >
               Launch Game
             </button>
@@ -135,13 +135,13 @@ export default function GameCard({
               type="button"
               onClick={handleFavorite}
               disabled={isFavoriting}
-              className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${isFavorited ? "bg-emerald-500 text-white hover:bg-emerald-400" : "bg-slate-800 text-slate-100 hover:bg-slate-700"}`}
+              className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${isFavorited ? "bg-emerald-500 text-white hover:bg-emerald-400" : "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"}`}
             >
               {isFavorited ? "Favorited" : "Add to favorites"}
             </button>
           </div>
 
-          {message && <p className="text-xs text-slate-400">{message}</p>}
+          {message && <p className="text-xs text-slate-500 dark:text-slate-400">{message}</p>}
         </div>
       </div>
     </Link>
