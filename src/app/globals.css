@@ -125,8 +125,13 @@ body::-webkit-scrollbar-thumb {
 .dark .glow-cyan    { text-shadow: 0 0 8px rgba(0, 240, 255, 0.55); }
 .dark .glow-magenta { text-shadow: 0 0 8px rgba(255, 42, 109, 0.55); }
 
-.ring-cyan    { box-shadow: 0 0 0 1px var(--neon-cyan), 0 0 18px -2px color-mix(in srgb, var(--neon-cyan) 40%, transparent); }
-.ring-magenta { box-shadow: 0 0 0 1px var(--neon-magenta), 0 0 18px -2px color-mix(in srgb, var(--neon-magenta) 40%, transparent); }
+.ring-cyan,
+.hover\:ring-cyan:hover,
+.focus\:ring-cyan:focus    { box-shadow: 0 0 0 1px var(--neon-cyan), 0 0 18px -2px color-mix(in srgb, var(--neon-cyan) 40%, transparent); }
+
+.ring-magenta,
+.hover\:ring-magenta:hover,
+.focus\:ring-magenta:focus { box-shadow: 0 0 0 1px var(--neon-magenta), 0 0 18px -2px color-mix(in srgb, var(--neon-magenta) 40%, transparent); }
 
 /* -----------------------------------------------------------------------------
    HUD panel — chamfered corners via clip-path. Two-layer for 1px "border".
