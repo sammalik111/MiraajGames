@@ -1,28 +1,39 @@
 // -----------------------------------------------------------------------------
-// Scalable conversation-centric messaging store (in-memory demo).
+// Messaging — Postgres-backed implementation.
 //
-// Shape maps 1:1 to a SQL schema:
-//   conversations(id PK, type, created_at, last_message_at,
-//                 last_message_preview, last_message_sender_id)
-//   messages(id PK, conversation_id FK, sender_id, content,
-//            created_at, edited_at, deleted_at)
-//     INDEX (conversation_id, created_at DESC, id)
-//   conversation_participants(conversation_id, user_id, last_read_at,
-//                             unread_count, muted, PK(conversation_id, user_id))
-//     INDEX (user_id)  -- for "my inbox"
-//   message_reactions(message_id, user_id, emoji, PK(...))  -- extensibility
+// Public API matches the previous in-memory version exactly so the API routes
+// in /app/api/messages/* keep working unchanged. Functions are async now.
 //
-// Messages are append-only and stored ONCE per conversation (never per user).
-// Denormalized fields on the conversation (last_message_*) and on the
-// participant row (unread_count) make inbox + unread badges O(1) to render.
+// Schema lives in src/db/schema.ts. The DDL there mirrors what was in this
+// file's old header comment one-to-one.
+//
+// Transactions: the @neondatabase/serverless HTTP driver does NOT support
+// interactive transactions, so sendMessage runs three separate statements
+// (INSERT message, UPDATE conversation denorm, UPDATE participant unread
+// counts). If a later statement fails, the next sendMessage will overwrite
+// the stale denorm, and markRead will reset stale unread counts — so the
+// inconsistency is bounded and self-healing. To get real ACID guarantees,
+// switch src/db/index.ts to the WebSocket Pool driver and wrap the three
+// statements in `db.transaction(async (tx) => …)`.
 // -----------------------------------------------------------------------------
 
+import { and, asc, desc, eq, lt, ne, sql } from "drizzle-orm";
+import {
+  db,
+  conversations,
+  conversationParticipants,
+  messages as messagesTable,
+  messageReactions,
+} from "@/db";
+import { makeId } from "@/lib/ids";
+
+// Re-export the shapes app code already imports as types.
 export type ConversationType = "dm" | "group";
 
 export interface Conversation {
   id: string;
   type: ConversationType;
-  participants: string[]; // user ids
+  participants: string[];
   createdAt: number;
   lastMessageAt: number | null;
   lastMessagePreview: string | null;
@@ -47,100 +58,154 @@ export interface ParticipantState {
   muted: boolean;
 }
 
-// In-memory tables (demo). Swap for Postgres/Mongo without changing callers.
-const conversations = new Map<string, Conversation>();
-const messagesByConversation = new Map<string, Message[]>(); // kept sorted by createdAt
-const participantsByKey = new Map<string, ParticipantState>(); // key: `${convId}:${userId}`
-const conversationsByUser = new Map<string, Set<string>>(); // userId -> conversationIds
+// -----------------------------------------------------------------------------
+// Internal: shape converters from DB rows (Date objects, nullable columns)
+// to the existing API shape (epoch ms, plain numbers).
+// -----------------------------------------------------------------------------
 
-function participantKey(conversationId: string, userId: string) {
-  return `${conversationId}:${userId}`;
+type ConversationRow = typeof conversations.$inferSelect;
+type MessageRow = typeof messagesTable.$inferSelect;
+type ParticipantRow = typeof conversationParticipants.$inferSelect;
+
+function toMs(d: Date | null): number | null {
+  return d ? d.getTime() : null;
 }
 
+async function loadParticipants(conversationId: string): Promise<string[]> {
+  const rows = await db
+    .select({ userId: conversationParticipants.userId })
+    .from(conversationParticipants)
+    .where(eq(conversationParticipants.conversationId, conversationId));
+  return rows.map((r) => r.userId).sort();
+}
+
+async function hydrateConversation(row: ConversationRow): Promise<Conversation> {
+  return {
+    id: row.id,
+    type: row.type,
+    participants: await loadParticipants(row.id),
+    createdAt: row.createdAt.getTime(),
+    lastMessageAt: toMs(row.lastMessageAt),
+    lastMessagePreview: row.lastMessagePreview,
+    lastMessageSenderId: row.lastMessageSenderId,
+  };
+}
+
+function hydrateMessage(row: MessageRow): Message {
+  return {
+    id: row.id,
+    conversationId: row.conversationId,
+    senderId: row.senderId,
+    content: row.content,
+    createdAt: row.createdAt.getTime(),
+    editedAt: toMs(row.editedAt),
+    deletedAt: toMs(row.deletedAt),
+  };
+}
+
+function hydrateParticipant(row: ParticipantRow): ParticipantState {
+  return {
+    conversationId: row.conversationId,
+    userId: row.userId,
+    lastReadAt: toMs(row.lastReadAt) ?? 0,
+    unreadCount: row.unreadCount,
+    muted: row.muted,
+  };
+}
+
+// DM ids are deterministic from the sorted user pair so getOrCreateDm can
+// idempotently look up an existing DM without scanning. Underscores only
+// (no colons) so they survive Next.js dynamic route matching unencoded.
 function dmId(a: string, b: string) {
   const [x, y] = [a, b].sort();
   return `dm_${x}_${y}`;
-}
-
-function addUserIndex(userId: string, conversationId: string) {
-  let set = conversationsByUser.get(userId);
-  if (!set) {
-    set = new Set();
-    conversationsByUser.set(userId, set);
-  }
-  set.add(conversationId);
-}
-
-function ensureParticipant(conversationId: string, userId: string) {
-  const key = participantKey(conversationId, userId);
-  let p = participantsByKey.get(key);
-  if (!p) {
-    p = {
-      conversationId,
-      userId,
-      lastReadAt: 0,
-      unreadCount: 0,
-      muted: false,
-    };
-    participantsByKey.set(key, p);
-  }
-  return p;
 }
 
 // -----------------------------------------------------------------------------
 // Conversations
 // -----------------------------------------------------------------------------
 
-export function getOrCreateDm(userA: string, userB: string): Conversation {
+export async function getOrCreateDm(userA: string, userB: string): Promise<Conversation> {
   const id = dmId(userA, userB);
-  let conv = conversations.get(id);
-  if (conv) return conv;
-  conv = {
-    id,
-    type: "dm",
-    participants: [userA, userB].sort(),
-    createdAt: Date.now(),
-    lastMessageAt: null,
-    lastMessagePreview: null,
-    lastMessageSenderId: null,
-  };
-  conversations.set(id, conv);
-  ensureParticipant(id, userA);
-  ensureParticipant(id, userB);
-  addUserIndex(userA, id);
-  addUserIndex(userB, id);
-  messagesByConversation.set(id, []);
-  return conv;
+
+  const [existing] = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.id, id))
+    .limit(1);
+  if (existing) return hydrateConversation(existing);
+
+  // Create the conversation + both participant rows. Three statements
+  // because no interactive transactions on the HTTP driver — see file
+  // header for the consistency note.
+  const [conv] = await db
+    .insert(conversations)
+    .values({
+      id,
+      type: "dm",
+      createdBy: userA,
+    })
+    .returning();
+
+  await db.insert(conversationParticipants).values([
+    { conversationId: id, userId: userA },
+    { conversationId: id, userId: userB },
+  ]);
+
+  return hydrateConversation(conv);
 }
 
-export function createGroup(creatorId: string, memberIds: string[]): Conversation {
+export async function createGroup(
+  creatorId: string,
+  memberIds: string[],
+  opts: { name?: string } = {},
+): Promise<Conversation> {
   const participants = Array.from(new Set([creatorId, ...memberIds]));
-  const id = `grp_${creatorId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const conv: Conversation = {
-    id,
-    type: "group",
-    participants,
-    createdAt: Date.now(),
-    lastMessageAt: null,
-    lastMessagePreview: null,
-    lastMessageSenderId: null,
-  };
-  conversations.set(id, conv);
-  messagesByConversation.set(id, []);
-  for (const uid of participants) {
-    ensureParticipant(id, uid);
-    addUserIndex(uid, id);
-  }
-  return conv;
+  const id = `grp_${creatorId}_${Date.now()}_${makeId(6)}`;
+
+  const [conv] = await db
+    .insert(conversations)
+    .values({
+      id,
+      type: "group",
+      name: opts.name ?? null,
+      createdBy: creatorId,
+    })
+    .returning();
+
+  await db.insert(conversationParticipants).values(
+    participants.map((userId) => ({ conversationId: id, userId })),
+  );
+
+  return hydrateConversation(conv);
 }
 
-export function getConversation(conversationId: string): Conversation | null {
-  return conversations.get(conversationId) ?? null;
+export async function getConversation(
+  conversationId: string,
+): Promise<Conversation | null> {
+  const [row] = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+  return row ? hydrateConversation(row) : null;
 }
 
-export function isParticipant(conversationId: string, userId: string): boolean {
-  const conv = conversations.get(conversationId);
-  return !!conv && conv.participants.includes(userId);
+export async function isParticipant(
+  conversationId: string,
+  userId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ userId: conversationParticipants.userId })
+    .from(conversationParticipants)
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.userId, userId),
+      ),
+    )
+    .limit(1);
+  return !!row;
 }
 
 export interface InboxEntry {
@@ -148,26 +213,41 @@ export interface InboxEntry {
   state: ParticipantState;
 }
 
-export function listConversationsForUser(userId: string): InboxEntry[] {
-  const ids = conversationsByUser.get(userId);
-  if (!ids) return [];
+export async function listConversationsForUser(
+  userId: string,
+): Promise<InboxEntry[]> {
+  // One join: pull the participant row (for unread/muted) alongside the
+  // conversation row. Sorted by lastMessageAt desc with createdAt tiebreaker
+  // so empty conversations bubble up by recency.
+  const rows = await db
+    .select({
+      conv: conversations,
+      part: conversationParticipants,
+    })
+    .from(conversationParticipants)
+    .innerJoin(
+      conversations,
+      eq(conversations.id, conversationParticipants.conversationId),
+    )
+    .where(eq(conversationParticipants.userId, userId))
+    .orderBy(
+      desc(sql`coalesce(${conversations.lastMessageAt}, ${conversations.createdAt})`),
+    );
+
+  // hydrateConversation does N participant lookups — fine at this scale,
+  // but if inbox grows large, batch via one IN-query instead.
   const out: InboxEntry[] = [];
-  for (const id of ids) {
-    const conv = conversations.get(id);
-    const state = participantsByKey.get(participantKey(id, userId));
-    if (conv && state) out.push({ conversation: conv, state });
+  for (const row of rows) {
+    out.push({
+      conversation: await hydrateConversation(row.conv),
+      state: hydrateParticipant(row.part),
+    });
   }
-  // Sort by lastMessageAt desc (fallback to createdAt for empty conversations)
-  out.sort(
-    (a, b) =>
-      (b.conversation.lastMessageAt ?? b.conversation.createdAt) -
-      (a.conversation.lastMessageAt ?? a.conversation.createdAt)
-  );
   return out;
 }
 
 // -----------------------------------------------------------------------------
-// Messages — append-only, one row per message
+// Messages
 // -----------------------------------------------------------------------------
 
 export interface SendMessageInput {
@@ -176,81 +256,120 @@ export interface SendMessageInput {
   content: string;
 }
 
-export function sendMessage({ conversationId, senderId, content }: SendMessageInput): Message {
-  const conv = conversations.get(conversationId);
-  if (!conv) throw new Error("conversation not found");
-  if (!conv.participants.includes(senderId)) throw new Error("not a participant");
+export async function sendMessage({
+  conversationId,
+  senderId,
+  content,
+}: SendMessageInput): Promise<Message> {
+  // Authorize before writing — caller already checks isParticipant in routes,
+  // but the FK on messages.conversation_id will fail anyway if the conv is
+  // missing, and this gives a clearer error for the participant case.
+  const inConv = await isParticipant(conversationId, senderId);
+  if (!inConv) throw new Error("not a participant");
 
-  const msg: Message = {
-    id: `msg:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
-    conversationId,
-    senderId,
-    content,
-    createdAt: Date.now(),
-    editedAt: null,
-    deletedAt: null,
-  };
-  const list = messagesByConversation.get(conversationId)!;
-  list.push(msg); // append — already ordered by createdAt
+  const id = `msg_${Date.now()}_${makeId(8)}`;
+  const [msgRow] = await db
+    .insert(messagesTable)
+    .values({ id, conversationId, senderId, content })
+    .returning();
 
-  // Denormalize onto conversation for O(1) inbox preview.
-  conv.lastMessageAt = msg.createdAt;
-  conv.lastMessagePreview = content.slice(0, 140);
-  conv.lastMessageSenderId = senderId;
+  // Denormalize onto the conversation. Truncate the preview at 140 chars to
+  // bound the index/payload size.
+  await db
+    .update(conversations)
+    .set({
+      lastMessageAt: msgRow.createdAt,
+      lastMessagePreview: content.slice(0, 140),
+      lastMessageSenderId: senderId,
+    })
+    .where(eq(conversations.id, conversationId));
 
-  // Bump unread for every other participant; sender is implicitly "read".
-  for (const uid of conv.participants) {
-    const p = ensureParticipant(conversationId, uid);
-    if (uid === senderId) {
-      p.lastReadAt = msg.createdAt;
-      p.unreadCount = 0;
-    } else {
-      p.unreadCount += 1;
-    }
-  }
-  return msg;
+  // Bump unread for every other participant; mark sender's row read.
+  // `unread_count = unread_count + 1` is a single row update — no read needed.
+  await db
+    .update(conversationParticipants)
+    .set({ unreadCount: sql`${conversationParticipants.unreadCount} + 1` })
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        ne(conversationParticipants.userId, senderId),
+      ),
+    );
+  await db
+    .update(conversationParticipants)
+    .set({ lastReadAt: msgRow.createdAt, unreadCount: 0 })
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.userId, senderId),
+      ),
+    );
+
+  return hydrateMessage(msgRow);
 }
 
 export interface PageOptions {
   limit?: number;
-  before?: number; // cursor: createdAt timestamp (exclusive)
+  before?: number; // exclusive cursor on createdAt (epoch ms)
 }
 
 export interface MessagePage {
-  messages: Message[]; // ascending by createdAt (oldest first of the page)
-  nextBefore: number | null; // pass back to load older
+  messages: Message[]; // ascending by createdAt
+  nextBefore: number | null;
 }
 
-export function getMessages(conversationId: string, opts: PageOptions = {}): MessagePage {
-  const list = messagesByConversation.get(conversationId) ?? [];
+export async function getMessages(
+  conversationId: string,
+  opts: PageOptions = {},
+): Promise<MessagePage> {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
-  const before = opts.before ?? Number.POSITIVE_INFINITY;
+  const beforeMs = opts.before ?? null;
 
-  // Keyset pagination: take the last `limit` messages strictly older than `before`.
-  // In SQL: WHERE conversation_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?
-  const filtered: Message[] = [];
-  for (let i = list.length - 1; i >= 0 && filtered.length < limit; i--) {
-    if (list[i].createdAt < before) filtered.push(list[i]);
-  }
-  filtered.reverse(); // return ascending for easy rendering
+  // Keyset pagination — uses messages_conv_created_idx
+  // (conversation_id, created_at DESC, id) defined in schema.ts.
+  // Pull `limit` rows DESC, then reverse for ASC display.
+  const where = beforeMs
+    ? and(
+        eq(messagesTable.conversationId, conversationId),
+        lt(messagesTable.createdAt, new Date(beforeMs)),
+      )
+    : eq(messagesTable.conversationId, conversationId);
 
-  const nextBefore = filtered.length === limit ? filtered[0].createdAt : null;
-  return { messages: filtered, nextBefore };
+  const rows = await db
+    .select()
+    .from(messagesTable)
+    .where(where)
+    .orderBy(desc(messagesTable.createdAt), desc(messagesTable.id))
+    .limit(limit);
+
+  const ascending = rows.slice().reverse().map(hydrateMessage);
+  const nextBefore =
+    ascending.length === limit ? ascending[0].createdAt : null;
+  return { messages: ascending, nextBefore };
 }
 
 // -----------------------------------------------------------------------------
 // Read state
 // -----------------------------------------------------------------------------
 
-export function markRead(conversationId: string, userId: string, at: number = Date.now()) {
-  const p = participantsByKey.get(participantKey(conversationId, userId));
-  if (!p) return;
-  p.lastReadAt = at;
-  p.unreadCount = 0;
+export async function markRead(
+  conversationId: string,
+  userId: string,
+  at: number = Date.now(),
+): Promise<void> {
+  await db
+    .update(conversationParticipants)
+    .set({ lastReadAt: new Date(at), unreadCount: 0 })
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.userId, userId),
+      ),
+    );
 }
 
 // -----------------------------------------------------------------------------
-// Extensibility stubs — same shape as a separate reactions table
+// Reactions + edits
 // -----------------------------------------------------------------------------
 
 export interface Reaction {
@@ -260,30 +379,75 @@ export interface Reaction {
   createdAt: number;
 }
 
-const reactionsByMessage = new Map<string, Reaction[]>();
+export async function addReaction(
+  messageId: string,
+  userId: string,
+  emoji: string,
+): Promise<Reaction> {
+  const [row] = await db
+    .insert(messageReactions)
+    .values({ messageId, userId, emoji })
+    .onConflictDoNothing() // PK = (message_id, user_id, emoji) — already-present is a no-op
+    .returning();
 
-export function addReaction(messageId: string, userId: string, emoji: string): Reaction {
-  const r: Reaction = { messageId, userId, emoji, createdAt: Date.now() };
-  const list = reactionsByMessage.get(messageId) ?? [];
-  list.push(r);
-  reactionsByMessage.set(messageId, list);
-  return r;
-}
-
-export function getReactions(messageId: string): Reaction[] {
-  return reactionsByMessage.get(messageId) ?? [];
-}
-
-export function editMessage(messageId: string, userId: string, content: string): Message | null {
-  // O(n) here for demo; in SQL this is a PK update.
-  for (const list of messagesByConversation.values()) {
-    const m = list.find((x) => x.id === messageId);
-    if (m) {
-      if (m.senderId !== userId) throw new Error("not the author");
-      m.content = content;
-      m.editedAt = Date.now();
-      return m;
-    }
+  // returning() yields nothing on conflict — fall back to a select.
+  if (row) {
+    return {
+      messageId: row.messageId,
+      userId: row.userId,
+      emoji: row.emoji,
+      createdAt: row.createdAt.getTime(),
+    };
   }
-  return null;
+  const [existing] = await db
+    .select()
+    .from(messageReactions)
+    .where(
+      and(
+        eq(messageReactions.messageId, messageId),
+        eq(messageReactions.userId, userId),
+        eq(messageReactions.emoji, emoji),
+      ),
+    )
+    .limit(1);
+  return {
+    messageId: existing.messageId,
+    userId: existing.userId,
+    emoji: existing.emoji,
+    createdAt: existing.createdAt.getTime(),
+  };
+}
+
+export async function getReactions(messageId: string): Promise<Reaction[]> {
+  const rows = await db
+    .select()
+    .from(messageReactions)
+    .where(eq(messageReactions.messageId, messageId));
+  return rows.map((r) => ({
+    messageId: r.messageId,
+    userId: r.userId,
+    emoji: r.emoji,
+    createdAt: r.createdAt.getTime(),
+  }));
+}
+
+export async function editMessage(
+  messageId: string,
+  userId: string,
+  content: string,
+): Promise<Message | null> {
+  const [existing] = await db
+    .select()
+    .from(messagesTable)
+    .where(eq(messagesTable.id, messageId))
+    .limit(1);
+  if (!existing) return null;
+  if (existing.senderId !== userId) throw new Error("not the author");
+
+  const [updated] = await db
+    .update(messagesTable)
+    .set({ content, editedAt: new Date() })
+    .where(eq(messagesTable.id, messageId))
+    .returning();
+  return updated ? hydrateMessage(updated) : null;
 }

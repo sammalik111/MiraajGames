@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
-import { users } from "@/auth.config";
+import { eq } from "drizzle-orm";
+import { db, users } from "@/db";
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const user = users.find((u) => u.id === id);
-  if (!user) return NextResponse.json({ user: null }, { status: 404 });
-  const { password: _pw, ...safe } = user;
-  return NextResponse.json({ user: safe });
+  const [row] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+
+  if (!row) return NextResponse.json({ user: null }, { status: 404 });
+  return NextResponse.json({ user: row });
 }

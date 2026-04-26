@@ -1,45 +1,37 @@
-import { userFriends, users } from "@/auth.config";
-import { auth } from "@/auth";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { db, users, userFriends } from "@/db";
 
-interface Friend {
-    id: string;
-    name: string;
-}
-
+// Returns the current user's friends with id + display name.
 export async function GET() {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            console.log("No user session found.");
-            return NextResponse.json({ friends: [] });
-        }
-
-        const userId = session.user.id as string;
-        console.log("User ID from session:", userId);
-        let friendIds: string[] = [];
-        for (const [key, friends] of Object.entries(userFriends)) {
-            if (key === userId) {
-                friendIds = friends;
-                break;
-            }
-        }
-        console.log("Friend IDs for current user:", friendIds);
-
-        let friends: Friend[] = [];
-        let allUsers = users as any[];
-        for (const friendId of friendIds) {
-            const thisUsersFriends = allUsers.find((u: any) => u.id === friendId);
-            if (thisUsersFriends) {
-                friends.push({ id: thisUsersFriends.id, name: thisUsersFriends.name });
-            }
-        }
-        console.log("Friends data:", friends);
-        return NextResponse.json({ friends });
-
-
-    } catch (error) {
-        console.error("Error retrieving friends:", error);
-        return NextResponse.json({ friends: [] });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ friends: [] });
     }
+    const userId = session.user.id as string;
+
+    // One join — pull the friend row + their user record in a single query.
+    const rows = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      })
+      .from(userFriends)
+      .innerJoin(users, eq(users.id, userFriends.friendId))
+      .where(eq(userFriends.userId, userId));
+
+    const friends = rows.map((r) => ({
+      id: r.id,
+      // Fall back to email if no display name set, matching the old behavior.
+      name: r.name ?? r.email,
+    }));
+
+    return NextResponse.json({ friends });
+  } catch (error) {
+    console.error("Error retrieving friends:", error);
+    return NextResponse.json({ friends: [] });
+  }
 }

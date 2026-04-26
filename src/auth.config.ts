@@ -1,23 +1,12 @@
 import { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
+import { db, users, userFavorites } from "@/db";
 
-// Simple in-memory user store for demo purposes
-const users: Array<{
-  id: string;
-  email: string;
-  name?: string;
-  password: string;
-}> = [];
-
-
-// store in a separate storage each users favourite game ids
-let userFavorites: Record<string, number[]> = {};
-
-// store in a separate storage each users friends list (array of user ids)
-let userFriends: Record<string, string[]> = {};
-
-
+// All user state now lives in Postgres. The in-memory `users`/`userFavorites`
+// /`userFriends` exports are gone — every route imports the corresponding
+// table from `@/db` and queries it directly with Drizzle.
 export const authConfig = {
   secret: process.env.NEXTAUTH_SECRET || "your-secret-key-here",
   providers: [
@@ -32,25 +21,24 @@ export const authConfig = {
           throw new Error("Invalid credentials");
         }
 
-        const user = users.find(u => u.email === credentials.email);
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, credentials.email as string))
+          .limit(1);
 
-        if (!user) {
-          throw new Error("Invalid credentials");
-        }
+        if (!user) throw new Error("Invalid credentials");
 
-        const isPasswordValid = await bcrypt.compare(
+        const ok = await bcrypt.compare(
           credentials.password as string,
-          user.password
+          user.passwordHash,
         );
-
-        if (!isPasswordValid) {
-          throw new Error("Invalid credentials");
-        }
+        if (!ok) throw new Error("Invalid credentials");
 
         return {
           id: user.id,
           email: user.email,
-          name: user.name,
+          name: user.name ?? undefined,
         };
       },
     }),
@@ -60,20 +48,21 @@ export const authConfig = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
+      if (user) token.id = user.id;
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && token.id) {
         session.user.id = token.id as string;
-        (session.user as any).favorites = userFavorites[token.id as string] ?? [];
+        // Pre-load favorites onto the session so the GameCard component can
+        // render the ★ state without an extra fetch on first paint.
+        const favs = await db
+          .select({ gameId: userFavorites.gameId })
+          .from(userFavorites)
+          .where(eq(userFavorites.userId, token.id as string));
+        (session.user as any).favorites = favs.map((f) => f.gameId);
       }
       return session;
     },
   },
 } satisfies NextAuthConfig;
-
-// Export the users array for registration
-export { users, userFavorites, userFriends };
