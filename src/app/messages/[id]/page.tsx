@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getUserById } from "@/components/getUserById";
 
 interface Message {
   id: string;
@@ -18,10 +17,12 @@ interface Message {
   deletedAt: number | null;
 }
 
+// Mirrors the GET /api/messages/[conversationId] payload.
 interface Conversation {
   id: string;
   type: "dm" | "group";
   participants: string[];
+  otherUsers: { id: string; name: string }[];
 }
 
 function formatTime(ts: number) {
@@ -29,7 +30,6 @@ function formatTime(ts: number) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-// Deterministic neon accent for an ID — used for peer avatar/handle.
 function accentFor(s: string) {
   const accents = ["var(--neon-cyan)", "var(--neon-magenta)", "var(--neon-yellow)", "var(--neon-lime)"];
   return accents[(s.charCodeAt(0) || 0) % accents.length];
@@ -54,10 +54,18 @@ function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   );
 }
 
+// Channel display name: peer for DM, comma-joined for group, fallback to id.
+function channelLabel(conv: Conversation | null, fallbackId: string): string {
+  if (!conv) return "Channel";
+  if (conv.otherUsers.length === 0) return "Empty channel";
+  if (conv.type === "dm") return conv.otherUsers[0].name;
+  return conv.otherUsers.map((u) => u.name).join(", ") || fallbackId;
+}
+
 export default function MessagePage() {
+  // params.id is now the CONVERSATION id (was friendId in the old flow).
   const params = useParams<{ id: string }>();
-  const friendId = params?.id;
-  const [friendObject, setFriendObject] = useState<{ id: string; name?: string; email?: string } | null>(null);
+  const conversationId = params?.id;
   const { data: session, status } = useSession();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -68,25 +76,32 @@ export default function MessagePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const userId = session?.user?.id;
 
-  // Resolve (or create) the DM conversation with this friend.
+  // Initial load: messages + conversation metadata in one shot.
+  // Server includes conversation hydration when there's no `before` cursor.
   useEffect(() => {
-    if (status !== "authenticated" || !userId || !friendId) return;
-    getUserById(friendId).then(setFriendObject);
+    if (status !== "authenticated" || !userId || !conversationId) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/messages/conversation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ friendId }),
-        });
+        const res = await fetch(
+          `/api/messages/${encodeURIComponent(conversationId)}`,
+        );
         if (!res.ok) {
-          setError("Could not open this channel.");
+          if (res.status === 403) setError("You're not in this channel.");
+          else if (res.status === 404) setError("Channel not found.");
+          else setError("Could not open channel.");
           return;
         }
         const data = await res.json();
         if (cancelled) return;
-        setConversation(data.conversation);
+        setConversation(data.conversation ?? null);
+        setMessages(data.messages ?? []);
+        setNextBefore(data.nextBefore ?? null);
+        // Fire-and-forget read receipt.
+        fetch(
+          `/api/messages/${encodeURIComponent(conversationId)}/read`,
+          { method: "POST" },
+        );
       } catch {
         setError("Network error.");
       }
@@ -94,28 +109,7 @@ export default function MessagePage() {
     return () => {
       cancelled = true;
     };
-  }, [status, userId, friendId]);
-
-  // Load the latest page of messages once we know the conversation id.
-  useEffect(() => {
-    if (!conversation) return;
-    let cancelled = false;
-    (async () => {
-      const res = await fetch(`/api/messages/${encodeURIComponent(conversation.id)}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (cancelled) return;
-      setMessages(data.messages);
-      setNextBefore(data.nextBefore);
-      fetch(`/api/messages/${encodeURIComponent(conversation.id)}/read`, { method: "POST" });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [conversation]);
+  }, [status, userId, conversationId]);
 
   // Stick to bottom on new messages.
   useEffect(() => {
@@ -124,8 +118,10 @@ export default function MessagePage() {
   }, [messages.length]);
 
   const loadOlder = async () => {
-    if (!conversation || nextBefore === null) return;
-    const res = await fetch(`/api/messages/${encodeURIComponent(conversation.id)}?before=${nextBefore}`);
+    if (!conversationId || nextBefore === null) return;
+    const res = await fetch(
+      `/api/messages/${encodeURIComponent(conversationId)}?before=${nextBefore}`,
+    );
     if (!res.ok) return;
     const data = await res.json();
     setMessages((prev) => [...data.messages, ...prev]);
@@ -134,14 +130,17 @@ export default function MessagePage() {
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!conversation || !draft.trim() || sending) return;
+    if (!conversationId || !draft.trim() || sending) return;
     setSending(true);
     try {
-      const res = await fetch(`/api/messages/${encodeURIComponent(conversation.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: draft }),
-      });
+      const res = await fetch(
+        `/api/messages/${encodeURIComponent(conversationId)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: draft }),
+        },
+      );
       if (!res.ok) {
         setError("Packet lost. Retry.");
         return;
@@ -190,8 +189,8 @@ export default function MessagePage() {
     );
   }
 
-  const friendName = friendObject?.name || "Operator";
-  const peerAccent = accentFor(friendId || "x");
+  const channelName = channelLabel(conversation, conversationId ?? "");
+  const peerAccent = accentFor(conversation?.otherUsers[0]?.id ?? channelName);
 
   return (
     <div className="min-h-screen text-[color:var(--fg)]">
@@ -207,13 +206,13 @@ export default function MessagePage() {
 
         {/* Channel header */}
         <div className="mt-4 flex items-center gap-4 pb-4 border-b border-[color:var(--border)]">
-          <Avatar name={friendName} size={52} />
+          <Avatar name={channelName} size={52} />
           <div className="flex-1 min-w-0">
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
-              ┌─ Channel · DM
+              ┌─ Channel · {conversation?.type === "group" ? "GROUP" : "DM"}
             </p>
             <h1 className="font-display font-bold text-2xl text-[color:var(--fg)] truncate">
-              {friendName}
+              {channelName}
             </h1>
           </div>
           <div className="hud-chip">
@@ -254,7 +253,7 @@ export default function MessagePage() {
                         className="font-mono text-[10px] uppercase tracking-[0.22em] ml-2"
                         style={{ color: peerAccent }}
                       >
-                        {friendName}
+                        {channelName}
                       </p>
                     )}
                     {group.messages.map((m) => (

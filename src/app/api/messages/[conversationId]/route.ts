@@ -1,9 +1,23 @@
+import { inArray } from "drizzle-orm";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import { getMessages, isParticipant, sendMessage } from "@/lib/messages";
+import {
+  getConversation,
+  getMessages,
+  isParticipant,
+  sendMessage,
+} from "@/lib/messages";
+import { db, users } from "@/db";
 
 // GET /api/messages/[conversationId]?before=<ts>&limit=<n>
-// Paginated messages via keyset cursor on createdAt.
+//
+// Returns paginated messages, plus — on the initial load (no `before` cursor) —
+// the conversation metadata with the other participants hydrated to {id,name}.
+// The conversation page needs both on first load, so bundling them avoids a
+// second round trip and a second authorization check.
+//
+// Subsequent pagination requests pass `?before=<ts>` and skip the conversation
+// payload, since the caller already has it.
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ conversationId: string }> },
@@ -25,7 +39,39 @@ export async function GET(
     before: before ? Number(before) : undefined,
     limit: limit ? Number(limit) : undefined,
   });
-  return NextResponse.json(page);
+
+  if (before) return NextResponse.json(page);
+
+  // Initial load — also return hydrated conversation metadata.
+  const conv = await getConversation(conversationId);
+  if (!conv) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+  const otherIds = conv.participants.filter((id) => id !== userId);
+  const userRows = otherIds.length
+    ? await db
+        .select({ id: users.id, name: users.name, email: users.email })
+        .from(users)
+        .where(inArray(users.id, otherIds))
+    : [];
+  const userById = new Map(userRows.map((u) => [u.id, u]));
+  const otherUsers = otherIds.map((id) => {
+    const u = userById.get(id);
+    return { id, name: u?.name ?? u?.email ?? id };
+  });
+
+  return NextResponse.json({
+    ...page,
+    conversation: {
+      id: conv.id,
+      type: conv.type,
+      participants: conv.participants,
+      otherUsers,
+      lastMessageAt: conv.lastMessageAt,
+      lastMessagePreview: conv.lastMessagePreview,
+      lastMessageSenderId: conv.lastMessageSenderId,
+    },
+  });
 }
 
 // POST /api/messages/[conversationId]  { content }

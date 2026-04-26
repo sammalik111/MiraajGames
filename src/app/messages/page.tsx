@@ -2,8 +2,9 @@
 
 import Navbar from "@/components/navbar";
 import HudPanel from "@/components/HudPanel";
+import ChooseFriends from "@/components/chooseFriends";
 import { useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 interface Friend {
@@ -12,13 +13,17 @@ interface Friend {
   image?: string;
 }
 
-interface RecentMessage {
-  friendId: string;
-  friendName: string;
-  friendImage?: string;
-  lastMessage: string;
-  timestamp: string;
-  unread: boolean;
+// Shape returned by GET /api/messages/conversations.
+interface InboxEntry {
+  id: string; // conversation id — used for the link target
+  type: "dm" | "group";
+  participants: string[];
+  otherUsers: { id: string; name: string }[];
+  lastMessageAt: number | null;
+  lastMessagePreview: string | null;
+  lastMessageSenderId: string | null;
+  unreadCount: number;
+  muted: boolean;
 }
 
 // Matches profile/page avatar styling — neon monogram or image in hud-clip.
@@ -53,43 +58,72 @@ function Avatar({ name, image, size = 48 }: { name: string; image?: string; size
   );
 }
 
+// "DM with X" / group label. Joins names for groups; falls back to first
+// other user for DMs.
+function entryLabel(entry: InboxEntry): string {
+  if (entry.otherUsers.length === 0) return "Empty channel";
+  if (entry.type === "dm") return entry.otherUsers[0].name;
+  return entry.otherUsers.map((u) => u.name).join(", ");
+}
+
+function entryAvatarName(entry: InboxEntry): string {
+  return entry.otherUsers[0]?.name ?? "?";
+}
+
+function formatTimestamp(ts: number | null): string {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString();
+}
+
 export default function MessagesPage() {
   const { data: session, status } = useSession();
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
+  const [inbox, setInbox] = useState<InboxEntry[]>([]);
   const [friendIdInput, setFriendIdInput] = useState("");
   const [addingFriend, setAddingFriend] = useState(false);
   const [addError, setAddError] = useState("");
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [loadingInbox, setLoadingInbox] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [showChooseFriends, setShowChooseFriends] = useState(false);
 
-  const fetchFriends = async () => {
+  const fetchFriends = useCallback(async () => {
     setLoadingFriends(true);
     try {
       const res = await fetch("/api/auth/getFriends");
       if (!res.ok) throw new Error();
       const data = await res.json();
       setFriends(data.friends ?? []);
-      setRecentMessages(
-        (data.friends ?? []).map((f: Friend) => ({
-          friendId: f.id,
-          friendName: f.name,
-          friendImage: f.image,
-          lastMessage: "No messages yet",
-          timestamp: "",
-          unread: false,
-        }))
-      );
     } catch {
       /* silent */
     } finally {
       setLoadingFriends(false);
     }
-  };
+  }, []);
+
+  // Inbox = active conversations. The server already filters out conversations
+  // with no `lastMessageAt`, so this list only contains channels that have at
+  // least one message — exactly what we want to show.
+  const fetchInbox = useCallback(async () => {
+    setLoadingInbox(true);
+    try {
+      const res = await fetch("/api/messages/conversations");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setInbox(data.conversations ?? []);
+    } catch {
+      /* silent */
+    } finally {
+      setLoadingInbox(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (status === "authenticated") fetchFriends();
-  }, [status]);
+    if (status === "authenticated") {
+      fetchFriends();
+      fetchInbox();
+    }
+  }, [status, fetchFriends, fetchInbox]);
 
   const addFriend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,7 +240,8 @@ export default function MessagesPage() {
           )}
         </section>
 
-        {/* Allies scroll */}
+        {/* Allies — display only. No link to a conversation; future profile
+            page will live behind clicking the avatar. */}
         <section>
           <div className="flex items-end justify-between pb-3 border-b border-[color:var(--border)]">
             <h2 className="font-display font-bold text-lg text-[color:var(--fg)]">
@@ -261,9 +296,10 @@ export default function MessagesPage() {
                     ) : (
                       <>
                         <div className="relative">
-                          <Link href={`/messages/${friend.id}`} className="block transition-all">
-                            <Avatar name={friend.name} image={friend.image} size={56} />
-                          </Link>
+                          {/* Avatar is intentionally not a link yet —
+                              clicking will open the public profile page once
+                              that route exists. */}
+                          <Avatar name={friend.name} image={friend.image} size={56} />
                           <button
                             onClick={() => setRemovingId(friend.id)}
                             className="absolute -top-1 -right-1 w-5 h-5 bg-[color:var(--surface)] border border-[color:var(--border-strong)] text-[color:var(--fg-muted)] text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:border-[color:var(--neon-magenta)] hover:text-[color:var(--neon-magenta)]"
@@ -272,7 +308,7 @@ export default function MessagesPage() {
                             ×
                           </button>
                         </div>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)] group-hover:text-[color:var(--neon-cyan)] transition-colors max-w-[72px] truncate text-center">
+                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)] max-w-[72px] truncate text-center">
                           {friend.name}
                         </span>
                       </>
@@ -284,98 +320,87 @@ export default function MessagesPage() {
           </div>
         </section>
 
-        {/* Inbox */}
+        {/* Inbox — active conversations only (server filters out empty ones). */}
         <section>
           <div className="flex items-end justify-between pb-3 border-b border-[color:var(--border)]">
             <h2 className="font-display font-bold text-lg text-[color:var(--fg)]">
               <span className="text-[color:var(--neon-cyan)] dark:glow-cyan">&gt;</span> Inbox
             </h2>
-            <span className="hud-chip">{recentMessages.length} channels</span>
+            <div className="flex items-center gap-3">
+              <span className="hud-chip">{inbox.length} channels</span>
+              <button
+                onClick={() => setShowChooseFriends(true)}
+                className="font-mono text-xs uppercase tracking-[0.2em] px-3 py-1.5 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
+              >
+                Open DM +
+              </button>
+            </div>
           </div>
 
-          {recentMessages.length === 0 ? (
+          {showChooseFriends && (
+            <ChooseFriends onClose={() => setShowChooseFriends(false)} />
+          )}
+
+          {loadingInbox ? (
+            <p className="mt-4 font-mono text-xs uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+              <span className="blink">●</span> Loading channels...
+            </p>
+          ) : inbox.length === 0 ? (
             <HudPanel className="mt-4" innerClassName="p-8 text-center">
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
-                &gt; No channels open. Link an ally to start a DM.
+                &gt; No channels open. Hit &ldquo;Open DM&rdquo; to start one.
               </p>
             </HudPanel>
           ) : (
             <ul className="mt-4 divide-y divide-[color:var(--border)] border-t border-b border-[color:var(--border)]">
-              {recentMessages.map((msg) => (
-                <li key={msg.friendId} className="flex items-stretch group">
-                  <Link
-                    href={`/messages/${msg.friendId}`}
-                    className="flex items-center gap-4 px-3 py-3 hover:bg-[color:var(--surface-2)] transition flex-1 min-w-0"
-                  >
-                    <div className="relative">
-                      <Avatar name={msg.friendName} image={msg.friendImage} size={44} />
-                      {msg.unread && (
-                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[color:var(--neon-cyan)] dark:glow-cyan" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span
-                          className={`font-display text-sm truncate ${
-                            msg.unread ? "font-bold text-[color:var(--fg)]" : "font-medium text-[color:var(--fg)]"
-                          }`}
-                        >
-                          {msg.friendName}
-                        </span>
-                        {msg.timestamp && (
-                          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)] flex-shrink-0">
-                            {msg.timestamp}
-                          </span>
+              {inbox.map((entry) => {
+                const label = entryLabel(entry);
+                const avatarName = entryAvatarName(entry);
+                const unread = entry.unreadCount > 0;
+                return (
+                  <li key={entry.id} className="flex items-stretch group">
+                    <Link
+                      href={`/messages/${encodeURIComponent(entry.id)}`}
+                      className="flex items-center gap-4 px-3 py-3 hover:bg-[color:var(--surface-2)] transition flex-1 min-w-0"
+                    >
+                      <div className="relative">
+                        <Avatar name={avatarName} size={44} />
+                        {unread && (
+                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[color:var(--neon-cyan)] dark:glow-cyan" />
                         )}
                       </div>
-                      <p
-                        className={`text-xs truncate mt-0.5 ${
-                          msg.unread
-                            ? "text-[color:var(--neon-cyan)] dark:glow-cyan"
-                            : "text-[color:var(--fg-muted)]"
-                        }`}
-                      >
-                        &gt; {msg.lastMessage}
-                      </p>
-                    </div>
-                    <span className="font-mono text-[color:var(--fg-muted)] group-hover:text-[color:var(--neon-cyan)] transition-colors">
-                      →
-                    </span>
-                  </Link>
-                  <button
-                    onClick={() =>
-                      setRemovingId(removingId === msg.friendId ? null : msg.friendId)
-                    }
-                    className="px-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--fg-muted)] opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                  >
-                    {removingId === msg.friendId ? (
-                      <span className="flex gap-2 items-center">
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeFriend(msg.friendId);
-                          }}
-                          className="text-[color:var(--neon-magenta)] hover:underline cursor-pointer"
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span
+                            className={`font-display text-sm truncate ${
+                              unread ? "font-bold text-[color:var(--fg)]" : "font-medium text-[color:var(--fg)]"
+                            }`}
+                          >
+                            {label}
+                          </span>
+                          {entry.lastMessageAt && (
+                            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)] flex-shrink-0">
+                              {formatTimestamp(entry.lastMessageAt)}
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className={`text-xs truncate mt-0.5 ${
+                            unread
+                              ? "text-[color:var(--neon-cyan)] dark:glow-cyan"
+                              : "text-[color:var(--fg-muted)]"
+                          }`}
                         >
-                          Drop
-                        </span>
-                        <span className="text-[color:var(--border-strong)]">/</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRemovingId(null);
-                          }}
-                          className="text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] cursor-pointer"
-                        >
-                          Keep
-                        </span>
+                          &gt; {entry.lastMessagePreview ?? ""}
+                        </p>
+                      </div>
+                      <span className="font-mono text-[color:var(--fg-muted)] group-hover:text-[color:var(--neon-cyan)] transition-colors">
+                        →
                       </span>
-                    ) : (
-                      "×"
-                    )}
-                  </button>
-                </li>
-              ))}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

@@ -17,7 +17,7 @@
 // statements in `db.transaction(async (tx) => …)`.
 // -----------------------------------------------------------------------------
 
-import { and, asc, desc, eq, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
 import {
   db,
   conversations,
@@ -217,8 +217,11 @@ export async function listConversationsForUser(
   userId: string,
 ): Promise<InboxEntry[]> {
   // One join: pull the participant row (for unread/muted) alongside the
-  // conversation row. Sorted by lastMessageAt desc with createdAt tiebreaker
-  // so empty conversations bubble up by recency.
+  // conversation row.
+  //
+  // Filter on `lastMessageAt IS NOT NULL` so empty conversations don't clutter
+  // the inbox — they exist in the DB (so `getOrCreateDm` stays idempotent) but
+  // only surface once someone actually sends the first message.
   const rows = await db
     .select({
       conv: conversations,
@@ -229,10 +232,13 @@ export async function listConversationsForUser(
       conversations,
       eq(conversations.id, conversationParticipants.conversationId),
     )
-    .where(eq(conversationParticipants.userId, userId))
-    .orderBy(
-      desc(sql`coalesce(${conversations.lastMessageAt}, ${conversations.createdAt})`),
-    );
+    .where(
+      and(
+        eq(conversationParticipants.userId, userId),
+        isNotNull(conversations.lastMessageAt),
+      ),
+    )
+    .orderBy(desc(conversations.lastMessageAt));
 
   // hydrateConversation does N participant lookups — fine at this scale,
   // but if inbox grows large, batch via one IN-query instead.
