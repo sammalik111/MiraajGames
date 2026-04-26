@@ -7,8 +7,19 @@ import { db, users, userFavorites } from "@/db";
 // All user state now lives in Postgres. The in-memory `users`/`userFavorites`
 // /`userFriends` exports are gone — every route imports the corresponding
 // table from `@/db` and queries it directly with Drizzle.
+
+// Fail fast if the secret isn't set — a hardcoded fallback would silently
+// invalidate every JWT the moment we deploy with a real secret, and (worse)
+// would let an attacker who knows the fallback forge sessions in dev.
+const secret = process.env.NEXTAUTH_SECRET;
+if (!secret) {
+  throw new Error(
+    "NEXTAUTH_SECRET is not set. Generate one with `openssl rand -base64 32` and add it to .env.local (dev) or /etc/miraaj.env (prod).",
+  );
+}
+
 export const authConfig = {
-  secret: process.env.NEXTAUTH_SECRET || "your-secret-key-here",
+  secret,
   providers: [
     Credentials({
       name: "Credentials",
