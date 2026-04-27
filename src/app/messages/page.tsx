@@ -90,7 +90,9 @@ export default function MessagesPage() {
   const fetchFriends = useCallback(async () => {
     setLoadingFriends(true);
     try {
-      const res = await fetch("/api/auth/getFriends");
+      const myID = session?.user?.id;
+      if (!myID) throw new Error("No user ID in session");
+      const res = await fetch(`/api/auth/getFriends?userID=${myID}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setFriends(data.friends ?? []);

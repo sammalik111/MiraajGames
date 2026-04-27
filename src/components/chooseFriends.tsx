@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface Friend {
   id: string;
@@ -26,9 +27,12 @@ export default function ChooseFriends({ onClose }: Props) {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const { data: session } = useSession();
 
   useEffect(() => {
-    fetch("/api/auth/getFriends")
+    const myID = session?.user?.id;
+    if (!myID) throw new Error("No user ID in session");
+    fetch(`/api/auth/getFriends?userID=${myID}`)
       .then((res) => res.json())
       .then((data) => setFriends(data.friends ?? []))
       .catch(() => setError("Could not load allies."))
