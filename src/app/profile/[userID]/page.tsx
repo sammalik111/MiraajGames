@@ -2,10 +2,8 @@
 
 import Navbar from "@/components/navbar";
 import HudPanel from "@/components/HudPanel";
-import { signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useParams } from "next/navigation";
 import { games } from "@/data/gameData";
 import GameCard from "@/components/gameCard";
 import Link from "next/link";
@@ -15,6 +13,12 @@ interface ProfileStats {
   gamesPlayed: number;
   achievements: number;
   points: number;
+}
+
+interface ProfileUser {
+  id: string;
+  name: string;
+  email: string;
 }
 
 interface Friend {
@@ -61,120 +65,89 @@ function Avatar({ name, image, size = 48 }: { name: string; image?: string; size
 }
 
 export default function Profile() {
-  const router = useRouter();
-  const { data: session, status } = useSession();
+  // Folder is /profile/[userID] — param key matches that segment exactly.
+  const params = useParams<{ userID: string }>();
+  const userID = params?.userID;
 
+  const [user, setUser] = useState<ProfileUser | null>(null);
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingFriends, setLoadingFriends] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
+  // One effect, gated on userID being present. All fetches use the
+  // closure-captured `userID` (a stable string) — no stale-state foot-gun.
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/");
-  }, [status, router]);
+    if (!userID) return;
+    let cancelled = false;
+    setLoadingProfile(true);
+    setLoadingFriends(true);
+    setNotFound(false);
 
-  useEffect(() => {
-    if (status !== "authenticated") return;
-
-    const load = async () => {
-      setLoadingProfile(true);
-      const favs = await retrieveFavorites();
-      setFavoriteIds(favs);
+    // Profile + favorites + stats in one call.
+    (async () => {
       try {
-        const res = await fetch(`/api/auth/profile?userID=${session?.user?.id}`);
+        const res = await fetch(
+          `/api/auth/profile?userID=${encodeURIComponent(userID)}`,
+        );
+        if (res.status === 404) {
+          if (!cancelled) setNotFound(true);
+          return;
+        }
         if (!res.ok) throw new Error();
         const data = await res.json();
+        if (cancelled) return;
+        setUser(data.user);
         setProfileStats(data.stats);
-      } catch (error) {
-        console.error("Profile load error:", error);
+        setFavoriteIds(data.favoriteIds ?? []);
+      } catch (err) {
+        console.error("Profile load error:", err);
       } finally {
-        setLoadingProfile(false);
+        if (!cancelled) setLoadingProfile(false);
       }
-    };
+    })();
 
-    const loadFriends = async () => {
-      setLoadingFriends(true);
+    // Friends — separate endpoint, fires in parallel with the profile fetch.
+    (async () => {
       try {
-        const myID = session?.user?.id;
-        if (!myID) throw new Error("No user ID in session");
-        const res = await fetch(`/api/auth/getFriends?userID=${myID}`);
+        const res = await fetch(
+          `/api/auth/getFriends?userID=${encodeURIComponent(userID)}`,
+        );
         if (!res.ok) throw new Error();
         const data = await res.json();
+        if (cancelled) return;
         setFriends(data.friends ?? []);
       } catch {
         /* silent */
       } finally {
-        setLoadingFriends(false);
+        if (!cancelled) setLoadingFriends(false);
       }
+    })();
+
+    return () => {
+      cancelled = true;
     };
+  }, [userID]);
 
-    load();
-    loadFriends();
-  }, [status]);
-
-  const handlePasswordChange = async () => {
-    setPasswordMessage(null);
-    try {
-      const res = await fetch("/api/auth/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPasswordMessage(data.error || "Unable to update password");
-        return;
-      }
-      setPasswordMessage("Password updated successfully.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch {
-      setPasswordMessage("Unable to update password");
-    }
-  };
-
-  const retrieveFavorites = async () => {
-    try {
-      const res = await fetch("/api/auth/favorites");
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      if (!session?.user) return [];
-      const userId = session.user.id as string;
-      for (const userFav of data.favorites) {
-        if (userFav.userId === userId) return userFav.favorites;
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  };
-
-  if (status === "loading") {
+  if (notFound) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen text-[color:var(--fg)]">
         <Navbar />
-        <div className="flex items-center justify-center py-40">
-          <p className="font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
-            <span className="blink">●</span> Establishing link...
+        <main className="max-w-xl mx-auto px-4 py-24 text-center">
+          <p className="font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--neon-magenta)]">
+            ✕ Operator not found.
           </p>
-        </div>
+        </main>
       </div>
     );
   }
 
-  const userName = session?.user?.name || "Operator";
-  const userEmail = session?.user?.email || "unknown@mesh";
-  const userId = session?.user?.id as string | undefined;
+  const userName = user?.name ?? "Unknown User";
+  const userEmail = user?.email ?? "Unknown Email";
   const favCount = profileStats?.favoriteCount ?? 0;
   const tier = favCount > 3 ? "Pro" : "Starter";
-
   const favoriteGames = games.filter((g) => favoriteIds.includes(g.id));
 
   return (
@@ -188,7 +161,7 @@ export default function Profile() {
           </p>
           <h1 className="font-display font-black text-4xl sm:text-5xl mt-3 tracking-tight text-[color:var(--fg)]">
             <span className="text-[color:var(--neon-magenta)] dark:glow-magenta">//</span>{" "}
-            {userName.toUpperCase()}
+            {loadingProfile ? "LOADING…" : userName.toUpperCase()}
           </h1>
         </div>
 
@@ -204,11 +177,11 @@ export default function Profile() {
                 {userName}
               </h2>
               <p className="text-sm text-[color:var(--fg-muted)] mt-1 truncate">{userEmail}</p>
-              {userId && (
+              {userID && (
                 <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--fg-muted)] mt-3">
                   id&nbsp;::&nbsp;
                   <span className="text-[color:var(--neon-cyan)] dark:glow-cyan normal-case tracking-normal">
-                    {userId}
+                    {userID}
                   </span>
                 </p>
               )}
@@ -268,17 +241,16 @@ export default function Profile() {
               </div>
             ) : friends.length === 0 ? (
               <p className="font-mono text-xs uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
-                &gt; No allies linked.{" "}
-                <Link href="/messages" className="text-[color:var(--neon-cyan)] dark:glow-cyan hover:underline">
-                  Find some in Messages
-                </Link>
+                &gt; No allies linked.
               </p>
             ) : (
               <div className="flex gap-5 overflow-x-auto pb-2">
                 {friends.map((friend) => (
+                  // Avatar links to that friend's public profile, not a DM —
+                  // that's what this whole [userID] route is for.
                   <Link
                     key={friend.id}
-                    href={`/profile/${friend.id}`}
+                    href={`/profile/${encodeURIComponent(friend.id)}`}
                     className="flex flex-col items-center gap-2 flex-shrink-0 group"
                   >
                     <Avatar name={friend.name} image={friend.image} size={60} />
@@ -290,68 +262,6 @@ export default function Profile() {
               </div>
             )}
           </div>
-        </section>
-
-        {/* Account */}
-        <section className="mt-12">
-          <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
-                ┌─ Account · Controls
-              </p>
-              <h3 className="font-display font-bold text-2xl mt-2 text-[color:var(--fg)]">
-                Settings
-              </h3>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <button
-              onClick={() => setShowPasswordForm((v) => !v)}
-              className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--border-strong)] text-[color:var(--fg)] hover:ring-cyan transition"
-            >
-              {showPasswordForm ? "Close · Password Form" : "Rotate Credentials"}
-            </button>
-            <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--neon-magenta)] text-[color:var(--neon-magenta)] hover:ring-magenta transition"
-            >
-              Disconnect · Sign Out
-            </button>
-          </div>
-
-          {showPasswordForm && (
-            <HudPanel className="mt-6" innerClassName="p-6 space-y-4">
-              {[
-                { label: "Current Password", value: currentPassword, set: setCurrentPassword },
-                { label: "New Password", value: newPassword, set: setNewPassword },
-                { label: "Confirm Password", value: confirmPassword, set: setConfirmPassword },
-              ].map(({ label, value, set }) => (
-                <div key={label}>
-                  <label className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
-                    {label}
-                  </label>
-                  <input
-                    type="password"
-                    value={value}
-                    onChange={(e) => set(e.target.value)}
-                    className="mt-2 w-full bg-[color:var(--surface-2)] border border-[color:var(--border-strong)] px-4 py-3 text-sm text-[color:var(--fg)] outline-none focus:border-[color:var(--neon-cyan)] transition"
-                  />
-                </div>
-              ))}
-              <button
-                onClick={handlePasswordChange}
-                className="w-full font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
-              >
-                Commit New Key →
-              </button>
-              {passwordMessage && (
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
-                  &gt; {passwordMessage}
-                </p>
-              )}
-            </HudPanel>
-          )}
         </section>
 
         {/* Favorites */}
@@ -368,9 +278,13 @@ export default function Profile() {
             <span className="hud-chip">{favoriteGames.length} saved</span>
           </div>
 
-          {favoriteGames.length === 0 ? (
+          {loadingProfile ? (
             <p className="mt-6 font-mono text-xs uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
-              &gt; Cache empty. Mark cabinets with ☆ from the library.
+              <span className="blink">●</span> Loading cabinets...
+            </p>
+          ) : favoriteGames.length === 0 ? (
+            <p className="mt-6 font-mono text-xs uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+              &gt; Cache empty.
             </p>
           ) : (
             <div className="mt-8 grid gap-6 sm:grid-cols-2">
