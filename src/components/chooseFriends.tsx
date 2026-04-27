@@ -22,7 +22,7 @@ export default function ChooseFriends({ onClose }: Props) {
   const router = useRouter();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[] | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -49,14 +49,14 @@ export default function ChooseFriends({ onClose }: Props) {
   );
 
   const handleConfirm = async () => {
-    if (!selectedId || creating) return;
+    if (!selectedIds || creating) return;
     setCreating(true);
     setError("");
     try {
       const res = await fetch("/api/messages/conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ friendId: selectedId }),
+        body: JSON.stringify({ friendIds: selectedIds }),
       });
       if (!res.ok) {
         setError("Could not open channel.");
@@ -129,11 +129,17 @@ export default function ChooseFriends({ onClose }: Props) {
             </p>
           ) : (
             filtered.map((f) => {
-              const selected = selectedId === f.id;
+              const selected = selectedIds?.includes(f.id);
               return (
                 <button
                   key={f.id}
-                  onClick={() => setSelectedId(f.id)}
+                  onClick={() => {
+                    if (selectedIds?.includes(f.id)) {
+                      setSelectedIds(selectedIds.filter((id) => id !== f.id));
+                    } else {
+                      setSelectedIds([...(selectedIds || []), f.id]);
+                    }
+                  }}
                   className={`w-full text-left px-3 py-2 font-mono text-sm transition ${
                     selected
                       ? "bg-[color:var(--neon-cyan)] text-black"
@@ -163,7 +169,7 @@ export default function ChooseFriends({ onClose }: Props) {
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!selectedId || creating}
+            disabled={!selectedIds || creating}
             className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-2 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition disabled:opacity-40"
           >
             {creating ? "Opening…" : "Open →"}

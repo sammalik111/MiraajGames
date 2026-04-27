@@ -357,6 +357,7 @@ export default function MessagesPage() {
                 const label = entryLabel(entry);
                 const avatarName = entryAvatarName(entry);
                 const unread = entry.unreadCount > 0;
+                
                 return (
                   <li key={entry.id} className="flex items-stretch group">
                     <Link

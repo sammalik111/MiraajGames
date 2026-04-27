@@ -258,7 +258,7 @@ export default function MessagePage() {
                     )}
                     {group.messages.map((m) => (
                       <div
-                        key={m.id}
+                        key={m.senderId}
                         className={`px-4 py-2.5 text-sm leading-6 border ${
                           mine
                             ? "bg-[color:var(--neon-cyan)] text-black border-[color:var(--neon-cyan)]"
