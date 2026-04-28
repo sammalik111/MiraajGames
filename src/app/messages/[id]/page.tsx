@@ -10,7 +10,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 interface Message {
   id: string;
   conversationId: string;
-  senderId: string;
+  // null when the sender's account has been deleted (FK is ON DELETE SET NULL).
+  senderId: string | null;
   content: string;
   createdAt: number;
   editedAt: number | null;
@@ -21,6 +22,8 @@ interface Message {
 interface Conversation {
   id: string;
   type: "dm" | "group";
+  // Persisted snapshot name (groups). Stable across membership churn.
+  name: string | null;
   participants: string[];
   otherUsers: { id: string; name: string }[];
 }
@@ -54,12 +57,18 @@ function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   );
 }
 
-// Channel display name: peer for DM, comma-joined for group, fallback to id.
+// Channel display name. Groups prefer the persisted snapshot name so the
+// header doesn't drift when someone leaves; falls back to comma-joined
+// peers, then to the id. DMs derive from the other user.
 function channelLabel(conv: Conversation | null, fallbackId: string): string {
   if (!conv) return "Channel";
+  if (conv.type === "group") {
+    if (conv.name) return conv.name;
+    if (conv.otherUsers.length === 0) return "Empty channel";
+    return conv.otherUsers.map((u) => u.name).join(", ") || fallbackId;
+  }
   if (conv.otherUsers.length === 0) return "Empty channel";
-  if (conv.type === "dm") return conv.otherUsers[0].name;
-  return conv.otherUsers.map((u) => u.name).join(", ") || fallbackId;
+  return conv.otherUsers[0].name;
 }
 
 export default function MessagePage() {
@@ -154,7 +163,7 @@ export default function MessagePage() {
   };
 
   const grouped = useMemo(() => {
-    const out: { senderId: string; messages: Message[] }[] = [];
+    const out: { senderId: string | null; messages: Message[] }[] = [];
     for (const m of messages) {
       const last = out[out.length - 1];
       if (last && last.senderId === m.senderId) last.messages.push(m);
@@ -244,7 +253,12 @@ export default function MessagePage() {
             )}
 
             {grouped.map((group, gi) => {
-              const mine = group.senderId === userId;
+              // Tighten the check — without `group.senderId` the comparison
+              // becomes `null === userId` which is false anyway, but if we
+              // ever loosen `userId` to null (e.g. logged-out preview), two
+              // nulls would compare equal and ghost-messages would render
+              // as "yours". Explicit guard is clearer.
+              const mine = !!group.senderId && group.senderId === userId;
               return (
                 <div key={gi} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className="max-w-[75%] space-y-1.5">

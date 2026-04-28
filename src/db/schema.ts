@@ -35,6 +35,12 @@ export const users = pgTable(
     id: text("id").primaryKey(), // nanoid generated in app code
     email: text("email").notNull().unique(),
     name: text("name"),
+    // Optional public-facing handle, distinct from `name`. Falls back to
+    // name → email in the UI when null.
+    nickname: text("nickname"),
+    // URL to a profile picture (S3, gravatar, whatever). Null = use the
+    // monogram avatar fallback.
+    avatarUrl: text("avatar_url"),
     // bcrypt hash — never the plain password.
     passwordHash: text("password_hash").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -93,9 +99,11 @@ export const conversations = pgTable("conversations", {
   type: conversationTypeEnum("type").notNull(),
   // Optional group name — null for DMs.
   name: text("name"),
-  createdBy: text("created_by")
-    .notNull()
-    .references(() => users.id, { onDelete: "restrict" }),
+  // Nullable + set-null on user delete — the conversation outlives the
+  // creator. UIs that care can show "Unknown" or just hide the field.
+  createdBy: text("created_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -115,9 +123,12 @@ export const messages = pgTable(
     conversationId: text("conversation_id")
       .notNull()
       .references(() => conversations.id, { onDelete: "cascade" }),
-    senderId: text("sender_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
+    // Nullable + set-null on user delete — past messages survive the
+    // sender's account deletion as anonymized history. UI renders these
+    // as "Unknown User".
+    senderId: text("sender_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     content: text("content").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

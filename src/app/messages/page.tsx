@@ -17,6 +17,9 @@ interface Friend {
 interface InboxEntry {
   id: string; // conversation id — used for the link target
   type: "dm" | "group";
+  // Stored snapshot name (groups). Stable when members leave; UI prefers
+  // this over the derived join-of-other-users.
+  name: string | null;
   participants: string[];
   otherUsers: { id: string; name: string }[];
   lastMessageAt: number | null;
@@ -58,12 +61,17 @@ function Avatar({ name, image, size = 48 }: { name: string; image?: string; size
   );
 }
 
-// "DM with X" / group label. Joins names for groups; falls back to first
-// other user for DMs.
+// Display label. Groups prefer the persisted `name` snapshot so the inbox
+// doesn't shift when a member leaves; falls back to derived. DMs always
+// derive from the other participant (or "Empty channel" if they've left).
 function entryLabel(entry: InboxEntry): string {
+  if (entry.type === "group") {
+    if (entry.name) return entry.name;
+    if (entry.otherUsers.length === 0) return "Empty channel";
+    return entry.otherUsers.map((u) => u.name).join(", ");
+  }
   if (entry.otherUsers.length === 0) return "Empty channel";
-  if (entry.type === "dm") return entry.otherUsers[0].name;
-  return entry.otherUsers.map((u) => u.name).join(", ");
+  return entry.otherUsers[0].name;
 }
 
 function entryAvatarName(entry: InboxEntry): string {
@@ -165,6 +173,21 @@ export default function MessagesPage() {
       /* silent */
     } finally {
       setRemovingId(null);
+    }
+  };
+
+  const handleLeaveChat = async ( conversationId: string) => {
+    if (!conversationId) return;
+
+    try {
+      const res = await fetch(
+        `/api/messages/${encodeURIComponent(conversationId)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error();
+      await fetchInbox();
+    } catch {
+      /* silent */
     }
   };
 
@@ -361,10 +384,12 @@ export default function MessagesPage() {
                 const unread = entry.unreadCount > 0;
                 
                 return (
-                  <li key={entry.id} className="flex items-stretch group">
+                  // `relative` so the absolute leave button anchors to the
+                  // row; `group` so it can fade in on row hover.
+                  <li key={entry.id} className="relative flex items-stretch group">
                     <Link
                       href={`/messages/${encodeURIComponent(entry.id)}`}
-                      className="flex items-center gap-4 px-3 py-3 hover:bg-[color:var(--surface-2)] transition flex-1 min-w-0"
+                      className="flex items-center gap-4 px-3 py-3 pr-10 hover:bg-[color:var(--surface-2)] transition flex-1 min-w-0"
                     >
                       <div className="relative">
                         <Avatar name={avatarName} size={44} />
@@ -401,6 +426,16 @@ export default function MessagesPage() {
                         →
                       </span>
                     </Link>
+                    {/* Leave button — sibling of the Link, not a child, so
+                        it's valid HTML and clicks don't fight the row link. */}
+                    <button
+                      onClick={() => handleLeaveChat(entry.id)}
+                      className="absolute top-1/2 -translate-y-1/2 right-2 w-6 h-6 bg-[color:var(--surface)] border border-[color:var(--border-strong)] text-[color:var(--fg-muted)] text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:border-[color:var(--neon-magenta)] hover:text-[color:var(--neon-magenta)]"
+                      title="Leave conversation"
+                      aria-label="Leave conversation"
+                    >
+                      ×
+                    </button>
                   </li>
                 );
               })}

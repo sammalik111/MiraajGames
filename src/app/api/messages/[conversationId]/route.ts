@@ -5,6 +5,7 @@ import {
   getConversation,
   getMessages,
   isParticipant,
+  leaveConversation,
   sendMessage,
 } from "@/lib/messages";
 import { db, users } from "@/db";
@@ -65,6 +66,7 @@ export async function GET(
     conversation: {
       id: conv.id,
       type: conv.type,
+      name: conv.name,
       participants: conv.participants,
       otherUsers,
       lastMessageAt: conv.lastMessageAt,
@@ -99,4 +101,33 @@ export async function POST(
     content: content.trim(),
   });
   return NextResponse.json({ message });
+}
+
+// DELETE /api/messages/[conversationId]
+//
+// "Leave" the conversation. Same shape across DMs and groups — the caller's
+// participant row is removed; the conversation is fully dropped only when
+// no one's left in it (which for DMs effectively means "the other side is
+// already gone"). Group ownership hands off to the next-earliest joiner if
+// the leaver was the creator. See leaveConversation() for the full policy.
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ conversationId: string }> },
+) {
+  const session = await auth();
+  const userId = session?.user?.id as string | undefined;
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const { conversationId } = await params;
+
+  try {
+    const result = await leaveConversation(conversationId, userId);
+    return NextResponse.json({ success: true, ...result });
+  } catch (err) {
+    if ((err as Error).message === "not a participant") {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    console.error("Leave conversation error:", err);
+    return NextResponse.json({ error: "internal" }, { status: 500 });
+  }
 }

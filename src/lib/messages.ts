@@ -33,6 +33,10 @@ export type ConversationType = "dm" | "group";
 export interface Conversation {
   id: string;
   type: ConversationType;
+  // Snapshot name. Set at creation for groups; null for DMs (the UI derives
+  // a DM label from the other participant). Stays stable when members leave
+  // — that's the whole point of persisting it instead of recomputing.
+  name: string | null;
   participants: string[];
   createdAt: number;
   lastMessageAt: number | null;
@@ -43,7 +47,8 @@ export interface Conversation {
 export interface Message {
   id: string;
   conversationId: string;
-  senderId: string;
+  // null when the sender's account has been deleted (FK ON DELETE SET NULL).
+  senderId: string | null;
   content: string;
   createdAt: number;
   editedAt: number | null;
@@ -83,6 +88,7 @@ async function hydrateConversation(row: ConversationRow): Promise<Conversation> 
   return {
     id: row.id,
     type: row.type,
+    name: row.name,
     participants: await loadParticipants(row.id),
     createdAt: row.createdAt.getTime(),
     lastMessageAt: toMs(row.lastMessageAt),
@@ -189,6 +195,77 @@ export async function getConversation(
     .where(eq(conversations.id, conversationId))
     .limit(1);
   return row ? hydrateConversation(row) : null;
+}
+
+// Remove `userId` from the conversation. Symmetric across DMs and groups:
+//   - The caller's participant row goes.
+//   - DMs: if the *other* side is also gone after that, nuke the conversation.
+//     The lone-survivor case (other person is still in the DM) just leaves
+//     them with an "Empty channel" entry until they leave too.
+//   - Groups: the group survives. If the leaver was the creator, ownership
+//     hands off to whoever joined earliest among the rest. If everyone is
+//     gone we drop the conversation.
+//
+// Returns whether the conversation was deleted (so the route can tell the
+// client to fully drop it from the inbox vs. just refresh).
+export async function leaveConversation(
+  conversationId: string,
+  userId: string,
+): Promise<{ deleted: boolean }> {
+  // Look up the conversation up-front so we can branch on type and creator
+  // without a second round trip.
+  const [conv] = await db
+    .select({
+      id: conversations.id,
+      type: conversations.type,
+      createdBy: conversations.createdBy,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+  if (!conv) {
+    return { deleted: false };
+  }
+
+  // Membership check — caller has to actually be in the convo to leave it.
+  const wasIn = await isParticipant(conversationId, userId);
+  if (!wasIn) {
+    throw new Error("not a participant");
+  }
+
+  await db
+    .delete(conversationParticipants)
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.userId, userId),
+      ),
+    );
+
+  // Anyone left?
+  const [survivor] = await db
+    .select({ userId: conversationParticipants.userId })
+    .from(conversationParticipants)
+    .where(eq(conversationParticipants.conversationId, conversationId))
+    .orderBy(asc(conversationParticipants.joinedAt))
+    .limit(1);
+
+  // Empty (group with no one left, or DM where the other side already left)
+  // — drop the conversation. FK cascades wipe messages + reactions.
+  if (!survivor) {
+    await db.delete(conversations).where(eq(conversations.id, conversationId));
+    return { deleted: true };
+  }
+
+  // Creator handoff for groups (and DMs too, defensively — cheap when no-op).
+  if (conv.createdBy === userId) {
+    await db
+      .update(conversations)
+      .set({ createdBy: survivor.userId })
+      .where(eq(conversations.id, conversationId));
+  }
+
+  return { deleted: false };
 }
 
 export async function isParticipant(

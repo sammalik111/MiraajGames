@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/navbar";
 import HudPanel from "@/components/HudPanel";
+import DeleteAccountPopup from "@/components/deleteAccountPopup";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -74,6 +75,7 @@ export default function Profile() {
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [showDeletePopup, setShowDeletePopup] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
@@ -117,6 +119,7 @@ export default function Profile() {
     load();
     loadFriends();
   }, [status]);
+
 
   const handlePasswordChange = async () => {
     setPasswordMessage(null);
@@ -306,19 +309,32 @@ export default function Profile() {
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {/* change password option */}
             <button
               onClick={() => setShowPasswordForm((v) => !v)}
               className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--border-strong)] text-[color:var(--fg)] hover:ring-cyan transition"
             >
-              {showPasswordForm ? "Close · Password Form" : "Rotate Credentials"}
+              {showPasswordForm ? "Close · Password Form" : "Change Password"}
             </button>
+            {/* sign out option */}
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
               className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--neon-magenta)] text-[color:var(--neon-magenta)] hover:ring-magenta transition"
             >
               Disconnect · Sign Out
             </button>
+            {/* delete account option */}
+            <button
+              onClick={() => setShowDeletePopup(true)}
+              className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--neon-magenta)] text-[color:var(--neon-magenta)] hover:ring-magenta transition"
+            >
+              Delete Account
+            </button>
           </div>
+
+          {showDeletePopup && (
+            <DeleteAccountPopup onClose={() => setShowDeletePopup(false)} />
+          )}
 
           {showPasswordForm && (
             <HudPanel className="mt-6" innerClassName="p-6 space-y-4">
@@ -352,6 +368,7 @@ export default function Profile() {
               )}
             </HudPanel>
           )}
+
         </section>
 
         {/* Favorites */}

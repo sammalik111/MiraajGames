@@ -40,6 +40,7 @@ export async function GET() {
   const payload = entries.map(({ conversation, state }) => ({
     id: conversation.id,
     type: conversation.type,
+    name: conversation.name,
     participants: conversation.participants,
     otherUsers: conversation.participants
       .filter((id) => id !== userId)

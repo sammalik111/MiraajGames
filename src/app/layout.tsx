@@ -42,7 +42,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${jetbrains.variable} ${vt323.variable} h-full antialiased`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        {/* Theme init must run before first paint to avoid a white flash —
+            beforeInteractive injects it ahead of hydration. Plain <script>
+            tags in JSX are no-ops on client renders in React 19. */}
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInit}
+        </Script>
         {/* Google AdSense — async, loaded once at the document level. */}
         <Script
           async
