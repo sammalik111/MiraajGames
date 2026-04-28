@@ -2,6 +2,16 @@ import GameCard from "@/components/gameCard";
 import HudPanel from "@/components/HudPanel";
 import { games } from "@/data/gameData";
 import Navbar from "@/components/navbar";
+import { db, users } from "@/db";
+
+
+const usercount = await db.select()
+  .from(users)
+  .then(rows => rows.length)
+  .catch(err => {
+    console.error("Error fetching user count:", err);
+    return "N/A";
+});
 
 export default function Home() {
   return (
@@ -53,7 +63,7 @@ export default function Home() {
               {[
                 { label: "Cabinets", value: games.length.toString().padStart(2, "0"), accent: "cyan" },
                 { label: "Uptime", value: "99.9%", accent: "magenta" },
-                { label: "Players", value: "1.2K", accent: "yellow" },
+                { label: "Players", value: usercount, accent: "yellow" },
               ].map((stat) => (
                 <div key={stat.label}>
                   <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
