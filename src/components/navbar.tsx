@@ -66,6 +66,7 @@ export default function Navbar() {
           <NavLink href="/#games">Games</NavLink>
           <NavLink href="/profile">Profile</NavLink>
           <NavLink href="/messages">Messages</NavLink>
+          <NavLink href="/contactUs">Contact Us</NavLink>
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
