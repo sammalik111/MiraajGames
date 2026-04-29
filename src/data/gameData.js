@@ -90,4 +90,18 @@ export const games = [
     creator: "Miraaj Games",
     theme: "puzzle",
   },
+  {
+    id: 14,
+    title: "Flappy Bird",
+    description: "Tap to flap and dodge endless pipes — survive as long as you can.",
+    creator: "Miraaj Games",
+    theme: "arcade",
+  },
+  {
+    id: 15,
+    title: "Crossy Road",
+    description: "Hop across roads and rivers through escalating levels of chaos.",
+    creator: "Miraaj Games",
+    theme: "arcade",
+  },
 ];

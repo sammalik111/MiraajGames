@@ -14,6 +14,8 @@ import CrosswordGame from "@/components/games/CrosswordGame";
 import MinesweeperGame from "@/components/games/MinesweeperGame";
 import SodukuGame from "@/components/games/sodukuGame";
 import BattleshipGame from "@/components/games/battleshipGame";
+import FlappyBirdGame from "@/components/games/FlappyBirdGame";
+import CrossyRoadGame from "@/components/games/CrossyRoadGame";
 import Link from "next/link";
 
 export function generateStaticParams() {
@@ -66,6 +68,8 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
       case 11: return <BattleshipGame />;
       case 12: return <MinesweeperGame />;
       case 13: return <SodukuGame />;
+      case 14: return <FlappyBirdGame />;
+      case 15: return <CrossyRoadGame />;
       default:
         return (
           <p className="text-center font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
