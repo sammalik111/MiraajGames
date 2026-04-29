@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, userFavorites, users } from "@/db";
+import { displayName } from "@/db/displayName";
 
 // GET /api/auth/profile?userID=<id>
 //
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
 
   // One row per user — name + email together so we don't fire two queries.
   const [userRow] = await db
-    .select({ name: users.name, email: users.email })
+    .select({ name: displayName, email: users.email })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);

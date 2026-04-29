@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { db, users, userFriends } from "@/db";
+import { displayName } from "@/db/displayName";
 
 // Returns the current user's friends with id + display name.
 export async function GET(request: Request) {
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const rows = await db
       .select({
         id: users.id,
-        name: users.name,
+        name: displayName,
         email: users.email,
       })
       .from(userFriends)

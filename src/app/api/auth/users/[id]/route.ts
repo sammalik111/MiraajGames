@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, users } from "@/db";
+import { displayName } from "@/db/displayName";
 
 export async function GET(
   _req: Request,
@@ -11,7 +12,7 @@ export async function GET(
     .select({
       id: users.id,
       email: users.email,
-      name: users.name,
+      name: displayName,
       createdAt: users.createdAt,
     })
     .from(users)

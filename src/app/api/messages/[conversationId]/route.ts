@@ -9,6 +9,7 @@ import {
   sendMessage,
 } from "@/lib/messages";
 import { db, users } from "@/db";
+import { displayName } from "@/db/displayName";
 
 // GET /api/messages/[conversationId]?before=<ts>&limit=<n>
 //
@@ -50,7 +51,7 @@ export async function GET(
   const otherIds = conv.participants.filter((id) => id !== userId);
   const userRows = otherIds.length
     ? await db
-        .select({ id: users.id, name: users.name, email: users.email })
+        .select({ id: users.id, name: displayName, email: users.email })
         .from(users)
         .where(inArray(users.id, otherIds))
     : [];

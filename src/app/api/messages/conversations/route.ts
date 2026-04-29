@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/requireUser";
 import { NextResponse } from "next/server";
 import { listConversationsForUser } from "@/lib/messages";
 import { db, users } from "@/db";
+import { displayName } from "@/db/displayName";
 
 // GET /api/messages/conversations
 // Returns the user's inbox with denormalized previews and unread counts.
@@ -28,7 +29,7 @@ export async function GET() {
     ? await db
         .select({
           id: users.id,
-          name: users.name,
+          name: displayName,
           email: users.email,
         })
         .from(users)

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, users } from "@/db";
+import { displayName } from "@/db/displayName";
 
 // Returns all users without passwords. Used by debugging tools — not exposed
 // in any UI. If this ever gets a UI consumer, add `auth()` + a role check.
@@ -8,7 +9,7 @@ export async function GET() {
     .select({
       id: users.id,
       email: users.email,
-      name: users.name,
+      name: displayName,
       createdAt: users.createdAt,
     })
     .from(users);

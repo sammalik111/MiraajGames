@@ -65,6 +65,19 @@ export const authConfig = {
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+
+        // Override session.user.name with nickname when set, so every
+        // client component that reads `user.name` picks up the alias
+        // without needing to know nickname exists.
+        const [row] = await db
+          .select({ name: users.name, nickname: users.nickname })
+          .from(users)
+          .where(eq(users.id, token.id as string))
+          .limit(1);
+        if (row) {
+          session.user.name = row.nickname ?? row.name ?? session.user.name;
+        }
+
         // Pre-load favorites onto the session so the GameCard component can
         // render the ★ state without an extra fetch on first paint.
         const favs = await db

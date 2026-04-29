@@ -67,8 +67,10 @@ export default function Profile() {
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showNicknameForm, setShowNicknameForm] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newNickname, setNewNickname] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
@@ -116,6 +118,24 @@ export default function Profile() {
     load();
     loadFriends();
   }, [authed, userId]);
+
+  const handleNicknameChange = async (command: "POST" | "DELETE") => {
+    try {
+      const res = await fetch("/api/auth/changeNickname", {
+        method: command,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newNickname }),
+      });
+      if (!res.ok) throw new Error();
+      
+      setShowNicknameForm(false);
+      // Refresh the page 
+      router.refresh();
+      
+    } catch {
+      alert("Unable to update nickname"); // TODO: better error handling UI
+    }
+  };
 
 
   const handlePasswordChange = async () => {
@@ -311,6 +331,13 @@ export default function Profile() {
             >
               {showPasswordForm ? "Close · Password Form" : "Change Password"}
             </button>
+            {/* change nickname option */}
+            <button
+              onClick={() => setShowNicknameForm((v) => !v)}
+              className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--border-strong)] text-[color:var(--fg)] hover:ring-cyan transition"
+            >
+              {showNicknameForm ? "Close · Nickname Form" : "Change Nickname"}
+            </button>
             {/* sign out option */}
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
@@ -329,6 +356,38 @@ export default function Profile() {
 
           {showDeletePopup && (
             <DeleteAccountPopup onClose={() => setShowDeletePopup(false)} />
+          )}
+
+          {showNicknameForm && (
+            <HudPanel className="mt-6" innerClassName="p-6 space-y-4">
+              {[
+                { label: "New Nickname", value: newNickname, set: setNewNickname },
+              ].map(({ label, value, set }) => (
+                <div key={label}>
+                  <label className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                    {label}
+                  </label>
+                  <input
+                    type="text"
+                    value={value}
+                    onChange={(e) => set(e.target.value)}
+                    className="mt-2 w-full bg-[color:var(--surface-2)] border border-[color:var(--border-strong)] px-4 py-3 text-sm text-[color:var(--fg)] outline-none focus:border-[color:var(--neon-cyan)] transition"
+                  />
+                </div>
+              ))}
+              <button
+                onClick={() => handleNicknameChange("POST")}
+                className="w-full font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
+              >
+                Change Nickname →
+              </button>
+              <button
+                onClick={() => handleNicknameChange("DELETE")}
+                className="w-full font-mono text-xs uppercase tracking-[0.2em] px-4 py-3  border border-[color:var(--neon-magenta)] text-[color:var(--neon-magenta)] hover:ring-magenta transition "
+              >
+                Remove Nickname →
+              </button>
+            </HudPanel>
           )}
 
           {showPasswordForm && (

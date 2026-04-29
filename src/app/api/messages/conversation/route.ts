@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/requireUser";
 import { NextResponse } from "next/server";
 import { getOrCreateDm, createGroup } from "@/lib/messages";
 import { db, userFriends, users } from "@/db";
+import { displayName } from "@/db/displayName";
 
 // POST /api/messages/conversation  { friendIds: string[] }
 //
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
   // from `name`, falling back to `email` to match the rest of the UI.
   const memberIds = Array.from(new Set([userId, ...friendIds]));
   const rows = await db
-    .select({ id: users.id, name: users.name, email: users.email })
+    .select({ id: users.id, name: displayName, email: users.email })
     .from(users)
     .where(inArray(users.id, memberIds));
   const byId = new Map(rows.map((r) => [r.id, r.name ?? r.email ?? r.id]));
