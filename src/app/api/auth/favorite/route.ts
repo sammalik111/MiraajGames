@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/requireUser";
 import { db, userFavorites } from "@/db";
 
 // Toggle a game in/out of the user's favorites.
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = await requireUser();
+    if (typeof userId !== "string") return userId;
 
     const { gameId } = await req.json();
     if (typeof gameId !== "number") {
       return NextResponse.json({ error: "gameId required" }, { status: 400 });
     }
-
-    const userId = session.user.id as string;
 
     // Probe before mutating so we know which action we took (the UI uses this
     // to flip the ★ state and choose the toast text).

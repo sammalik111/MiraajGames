@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/requireUser";
 import { db, users } from "@/db";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = await requireUser();
+    if (typeof userId !== "string") return userId;
 
     const { currentPassword, newPassword, confirmPassword } = await req.json();
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -22,7 +20,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "New password must be at least 8 characters" }, { status: 400 });
     }
 
-    const userId = session.user.id as string;
     const [user] = await db
       .select()
       .from(users)

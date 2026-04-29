@@ -3,10 +3,9 @@
 import Navbar from "@/components/navbar";
 import HudPanel from "@/components/HudPanel";
 import DeleteAccountPopup from "@/components/deleteAccountPopup";
-import { signOut } from "next-auth/react";
+import { useAuth } from "@/lib/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import { games } from "@/data/gameData";
 import GameCard from "@/components/gameCard";
 import Link from "next/link";
@@ -63,7 +62,7 @@ function Avatar({ name, image, size = 48 }: { name: string; image?: string; size
 
 export default function Profile() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { user, userId, status, authed, loading, signOut } = useAuth();
 
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -82,14 +81,14 @@ export default function Profile() {
   }, [status, router]);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (!authed || !userId) return;
 
     const load = async () => {
       setLoadingProfile(true);
       const favs = await retrieveFavorites();
       setFavoriteIds(favs);
       try {
-        const res = await fetch(`/api/auth/profile?userID=${session?.user?.id}`);
+        const res = await fetch(`/api/auth/profile?userID=${userId}`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         setProfileStats(data.stats);
@@ -103,9 +102,7 @@ export default function Profile() {
     const loadFriends = async () => {
       setLoadingFriends(true);
       try {
-        const myID = session?.user?.id;
-        if (!myID) throw new Error("No user ID in session");
-        const res = await fetch(`/api/friends/getFriends?userID=${myID}`);
+        const res = await fetch(`/api/friends/getFriends?userID=${userId}`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         setFriends(data.friends ?? []);
@@ -118,7 +115,7 @@ export default function Profile() {
 
     load();
     loadFriends();
-  }, [status]);
+  }, [authed, userId]);
 
 
   const handlePasswordChange = async () => {
@@ -148,8 +145,7 @@ export default function Profile() {
       const res = await fetch("/api/auth/favorites");
       if (!res.ok) throw new Error();
       const data = await res.json();
-      if (!session?.user) return [];
-      const userId = session.user.id as string;
+      if (!userId) return [];
       for (const userFav of data.favorites) {
         if (userFav.userId === userId) return userFav.favorites;
       }
@@ -159,7 +155,7 @@ export default function Profile() {
     }
   };
 
-  if (status === "loading") {
+  if (loading) {
     return (
       <div className="min-h-screen">
         <Navbar />
@@ -172,9 +168,8 @@ export default function Profile() {
     );
   }
 
-  const userName = session?.user?.name || "Operator";
-  const userEmail = session?.user?.email || "unknown@mesh";
-  const userId = session?.user?.id as string | undefined;
+  const userName = user?.name || "Operator";
+  const userEmail = user?.email || "unknown@mesh";
   const favCount = profileStats?.favoriteCount ?? 0;
   const tier = favCount > 3 ? "Pro" : "Starter";
 

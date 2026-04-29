@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/lib/useAuth";
 
 
 interface Props {
@@ -14,12 +14,7 @@ export default function DeleteAccountPopup({ onClose }: Props) {
   const [inputConfirmation, setInputConfirmation] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
-  const { data: session } = useSession();
-
-  useEffect(() => {
-    const myID = session?.user?.id;
-    if (!myID) throw new Error("No user ID in session");
-  }, []);
+  const { signOut } = useAuth();
 
   // Esc to dismiss — small ergonomics win for a modal.
   useEffect(() => {

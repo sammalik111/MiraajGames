@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/requireUser";
 import { NextResponse } from "next/server";
 import { getOrCreateDm, createGroup } from "@/lib/messages";
 import { db, userFriends, users } from "@/db";
@@ -12,11 +12,8 @@ import { db, userFriends, users } from "@/db";
 // the joined member display names so it doesn't drift later when someone
 // leaves and otherUsers changes.
 export async function POST(req: Request) {
-  const session = await auth();
-  const userId = session?.user?.id as string | undefined;
-  if (!userId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const userId = await requireUser();
+  if (typeof userId !== "string") return userId;
 
   const { friendIds } = await req.json().catch(() => ({}));
   if (!friendIds || !Array.isArray(friendIds) || friendIds.length === 0) {

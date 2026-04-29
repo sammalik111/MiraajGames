@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/useAuth";
 
 interface Friend {
   id: string;
@@ -27,17 +27,18 @@ export default function ChooseFriends({ onClose }: Props) {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const { data: session } = useSession();
+  const { userId, authed } = useAuth();
 
   useEffect(() => {
-    const myID = session?.user?.id;
-    if (!myID) throw new Error("No user ID in session");
-    fetch(`/api/friends/getFriends?userID=${myID}`)
+    // Wait for the session to hydrate before fetching — otherwise the
+    // first render fires with userId=null and we'd 401 needlessly.
+    if (!authed || !userId) return;
+    fetch(`/api/friends/getFriends?userID=${userId}`)
       .then((res) => res.json())
       .then((data) => setFriends(data.friends ?? []))
       .catch(() => setError("Could not load allies."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [authed, userId]);
 
   // Esc to dismiss — small ergonomics win for a modal.
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/useAuth";
 import ThemeToggle from "@/components/ThemeToggle";
 
 // Cyberpunk nav link. Underline glints cyan when active.
@@ -30,7 +30,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 }
 
 export default function Navbar() {
-  const { data: session } = useSession();
+  const { user, authed } = useAuth();
 
   const handleSignOut = async () => {
     try {
@@ -70,12 +70,12 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
-          {session ? (
+          {authed ? (
             <>
               <div className="hud-chip">
                 <span className="text-[color:var(--neon-cyan)]">●</span>
                 <span className="normal-case tracking-normal text-xs">
-                  {session.user?.email?.split("@")[0] ?? "player"}
+                  {user?.email?.split("@")[0] ?? "player"}
                 </span>
               </div>
               <button

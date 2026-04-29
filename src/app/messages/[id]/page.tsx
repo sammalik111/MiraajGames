@@ -3,7 +3,7 @@
 import Navbar from "@/components/navbar";
 import HudPanel from "@/components/HudPanel";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/useAuth";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -75,7 +75,7 @@ export default function MessagePage() {
   // params.id is now the CONVERSATION id (was friendId in the old flow).
   const params = useParams<{ id: string }>();
   const conversationId = params?.id;
-  const { data: session, status } = useSession();
+  const { userId, authed, loading } = useAuth();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [nextBefore, setNextBefore] = useState<number | null>(null);
@@ -83,12 +83,11 @@ export default function MessagePage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const userId = session?.user?.id;
 
   // Initial load: messages + conversation metadata in one shot.
   // Server includes conversation hydration when there's no `before` cursor.
   useEffect(() => {
-    if (status !== "authenticated" || !userId || !conversationId) return;
+    if (!authed || !userId || !conversationId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -118,7 +117,7 @@ export default function MessagePage() {
     return () => {
       cancelled = true;
     };
-  }, [status, userId, conversationId]);
+  }, [authed, userId, conversationId]);
 
   // Stick to bottom on new messages.
   useEffect(() => {
@@ -172,7 +171,7 @@ export default function MessagePage() {
     return out;
   }, [messages]);
 
-  if (status === "loading") {
+  if (loading) {
     return (
       <div className="min-h-screen">
         <Navbar />
@@ -185,7 +184,7 @@ export default function MessagePage() {
     );
   }
 
-  if (!session) {
+  if (!authed) {
     return (
       <div className="min-h-screen">
         <Navbar />

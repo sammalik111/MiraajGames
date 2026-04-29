@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/requireUser";
 import { db, users } from "@/db";
 
 // DELETE /api/auth/deleteAccount  { inputData: <plaintext password> }
@@ -17,11 +17,8 @@ import { db, users } from "@/db";
 //
 // So a single DELETE on `users` is enough.
 export async function DELETE(request: Request) {
-  const session = await auth();
-  const userId = session?.user?.id as string | undefined;
-  if (!userId) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
-  }
+  const userId = await requireUser();
+  if (typeof userId !== "string") return userId;
 
   const { inputData } = await request.json().catch(() => ({}));
   if (typeof inputData !== "string" || !inputData) {

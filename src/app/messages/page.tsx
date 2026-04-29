@@ -3,7 +3,7 @@
 import Navbar from "@/components/navbar";
 import HudPanel from "@/components/HudPanel";
 import ChooseFriends from "@/components/chooseFriends";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/useAuth";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
@@ -84,7 +84,7 @@ function formatTimestamp(ts: number | null): string {
 }
 
 export default function MessagesPage() {
-  const { data: session, status } = useSession();
+  const { userId, authed, loading } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [inbox, setInbox] = useState<InboxEntry[]>([]);
   const [friendIdInput, setFriendIdInput] = useState("");
@@ -96,12 +96,10 @@ export default function MessagesPage() {
   const [showChooseFriends, setShowChooseFriends] = useState(false);
 
   const fetchFriends = useCallback(async () => {
+    if (!userId) return;
     setLoadingFriends(true);
     try {
-      const myID = session?.user?.id;
-      console.log("Fetching friends for user ID:", myID); // Debug log
-      if (!myID) throw new Error("No user ID in session");
-      const res = await fetch(`/api/friends/getFriends?userID=${myID}`);
+      const res = await fetch(`/api/friends/getFriends?userID=${userId}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setFriends(data.friends ?? []);
@@ -109,11 +107,10 @@ export default function MessagesPage() {
       const err = error instanceof Error ? error : new Error("Unknown error");
       console.error("Error fetching friends:", err);
       setFriends([]);
-
     } finally {
       setLoadingFriends(false);
     }
-  }, []);
+  }, [userId]);
 
   // Inbox = active conversations. The server already filters out conversations
   // with no `lastMessageAt`, so this list only contains channels that have at
@@ -133,11 +130,11 @@ export default function MessagesPage() {
   }, []);
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (authed) {
       fetchFriends();
       fetchInbox();
     }
-  }, [status, fetchFriends, fetchInbox]);
+  }, [authed, fetchFriends, fetchInbox]);
 
   const addFriend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +146,7 @@ export default function MessagesPage() {
       const res = await fetch("/api/friends/addFriend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session?.user?.id, friendId }),
+        body: JSON.stringify({ friendId }),
       });
       if (!res.ok) {
         setAddError("Could not link. Check the handle ID and retry.");
@@ -169,7 +166,7 @@ export default function MessagesPage() {
       const res = await fetch("/api/friends/removeFriend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session?.user?.id, friendId }),
+        body: JSON.stringify({ friendId }),
       });
       if (!res.ok) throw new Error();
       await fetchFriends();
@@ -195,7 +192,7 @@ export default function MessagesPage() {
     }
   };
 
-  if (status === "loading") {
+  if (loading) {
     return (
       <div className="min-h-screen">
         <Navbar />
@@ -208,7 +205,7 @@ export default function MessagesPage() {
     );
   }
 
-  if (!session) {
+  if (!authed) {
     return (
       <div className="min-h-screen">
         <Navbar />

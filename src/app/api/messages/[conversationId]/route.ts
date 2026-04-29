@@ -1,5 +1,5 @@
 import { inArray } from "drizzle-orm";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/requireUser";
 import { NextResponse } from "next/server";
 import {
   getConversation,
@@ -23,9 +23,8 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
-  const session = await auth();
-  const userId = session?.user?.id as string | undefined;
-  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const userId = await requireUser();
+  if (typeof userId !== "string") return userId;
 
   const { conversationId } = await params;
 
@@ -81,9 +80,8 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
-  const session = await auth();
-  const userId = session?.user?.id as string | undefined;
-  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const userId = await requireUser();
+  if (typeof userId !== "string") return userId;
 
   const { conversationId } = await params;
   if (!(await isParticipant(conversationId, userId))) {
@@ -114,9 +112,8 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
-  const session = await auth();
-  const userId = session?.user?.id as string | undefined;
-  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const userId = await requireUser();
+  if (typeof userId !== "string") return userId;
 
   const { conversationId } = await params;
 

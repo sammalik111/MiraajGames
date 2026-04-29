@@ -1,16 +1,13 @@
 import { and, eq, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/requireUser";
 import { db, userFriends } from "@/db";
 
 // POST { friendId } — removes both rows of the symmetric pair.
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
-    }
-    const userId = session.user.id as string;
+    const userId = await requireUser();
+    if (typeof userId !== "string") return userId;
 
     const body = await request.json().catch(() => ({}));
     const friendId = (body.friendId ?? body.userId) as string | undefined;

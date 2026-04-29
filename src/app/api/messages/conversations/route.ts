@@ -1,5 +1,5 @@
 import { inArray } from "drizzle-orm";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/requireUser";
 import { NextResponse } from "next/server";
 import { listConversationsForUser } from "@/lib/messages";
 import { db, users } from "@/db";
@@ -9,9 +9,8 @@ import { db, users } from "@/db";
 // Each entry is enriched with `otherUsers` (id + display name) so the UI
 // can render avatars and titles without a follow-up fetch per row.
 export async function GET() {
-  const session = await auth();
-  const userId = session?.user?.id as string | undefined;
-  if (!userId) return NextResponse.json({ conversations: [] });
+  const userId = await requireUser();
+  if (typeof userId !== "string") return userId;
 
   const entries = await listConversationsForUser(userId);
 
