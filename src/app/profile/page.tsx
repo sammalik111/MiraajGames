@@ -60,7 +60,7 @@ function Avatar( { setShowAvatarForm, removeAvatar, name, image = null, size = 4
               fontSize: size * 0.08,
             }}
             onClick={removeAvatar}
-            className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black text-white border-2 border-[color:var(--border-strong)] mt-2 text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] hover:text-[color:var(--neon-cyan)] hover:ring-cyan transition px-3 py-1"
+            className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black border-2 border-[color:var(--border-strong)] mt-2 text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] hover:text-[color:var(--neon-cyan)] hover:ring-cyan transition px-3 py-1"
             >
               remove
             </button>
@@ -89,7 +89,7 @@ function Avatar( { setShowAvatarForm, removeAvatar, name, image = null, size = 4
           fontSize: size * 0.08,
         }}
         onClick={() => setShowAvatarForm(true)}
-        className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black text-white border-2 border-[color:var(--border-strong)] mt-2 text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] hover:text-[color:var(--neon-cyan)] hover:ring-cyan transition px-3 py-1"
+        className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black border-2 border-[color:var(--border-strong)] mt-2 text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] hover:text-[color:var(--neon-cyan)] hover:ring-cyan transition px-3 py-1"
         >
           add avatar 
         </button>
