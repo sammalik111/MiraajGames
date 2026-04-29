@@ -101,7 +101,7 @@ export default function MessagesPage() {
       const myID = session?.user?.id;
       console.log("Fetching friends for user ID:", myID); // Debug log
       if (!myID) throw new Error("No user ID in session");
-      const res = await fetch(`/api/auth/getFriends?userID=${myID}`);
+      const res = await fetch(`/api/friends/getFriends?userID=${myID}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setFriends(data.friends ?? []);
@@ -146,7 +146,7 @@ export default function MessagesPage() {
     setAddingFriend(true);
     setAddError("");
     try {
-      const res = await fetch("/api/auth/addFriend", {
+      const res = await fetch("/api/friends/addFriend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: session?.user?.id, friendId }),
@@ -166,7 +166,7 @@ export default function MessagesPage() {
 
   const removeFriend = async (friendId: string) => {
     try {
-      const res = await fetch("/api/auth/removeFriend", {
+      const res = await fetch("/api/friends/removeFriend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: session?.user?.id, friendId }),

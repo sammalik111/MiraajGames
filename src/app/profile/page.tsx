@@ -105,7 +105,7 @@ export default function Profile() {
       try {
         const myID = session?.user?.id;
         if (!myID) throw new Error("No user ID in session");
-        const res = await fetch(`/api/auth/getFriends?userID=${myID}`);
+        const res = await fetch(`/api/friends/getFriends?userID=${myID}`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         setFriends(data.friends ?? []);

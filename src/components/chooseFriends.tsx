@@ -32,7 +32,7 @@ export default function ChooseFriends({ onClose }: Props) {
   useEffect(() => {
     const myID = session?.user?.id;
     if (!myID) throw new Error("No user ID in session");
-    fetch(`/api/auth/getFriends?userID=${myID}`)
+    fetch(`/api/friends/getFriends?userID=${myID}`)
       .then((res) => res.json())
       .then((data) => setFriends(data.friends ?? []))
       .catch(() => setError("Could not load allies."))
