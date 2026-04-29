@@ -6,6 +6,7 @@ import ChooseFriends from "@/components/chooseFriends";
 import { useAuth } from "@/lib/useAuth";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Friend {
   id: string;
@@ -266,8 +267,7 @@ export default function MessagesPage() {
           )}
         </section>
 
-        {/* Allies — display only. No link to a conversation; future profile
-            page will live behind clicking the avatar. */}
+        {/* Allies */}
         <section>
           <div className="flex items-end justify-between pb-3 border-b border-[color:var(--border)]">
             <h2 className="font-display font-bold text-lg text-[color:var(--fg)]">
@@ -295,7 +295,7 @@ export default function MessagesPage() {
             ) : (
               <div className="flex gap-5 overflow-x-auto pb-2">
                 {friends.map((friend) => (
-                  <div key={friend.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 group relative">
+                  <Link href={`/profile/${friend.id}`} key={friend.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 group relative">
                     {removingId === friend.id ? (
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="w-14 h-14 hud-clip border border-[color:var(--neon-magenta)] bg-[color:var(--surface-2)] flex items-center justify-center">
@@ -322,9 +322,6 @@ export default function MessagesPage() {
                     ) : (
                       <>
                         <div className="relative">
-                          {/* Avatar is intentionally not a link yet —
-                              clicking will open the public profile page once
-                              that route exists. */}
                           <Avatar name={friend.name} image={friend.image} size={56} />
                           <button
                             onClick={() => setRemovingId(friend.id)}
@@ -339,7 +336,7 @@ export default function MessagesPage() {
                         </span>
                       </>
                     )}
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

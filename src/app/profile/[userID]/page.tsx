@@ -90,7 +90,7 @@ export default function Profile() {
     (async () => {
       try {
         const res = await fetch(
-          `/api/auth/profile?userID=${encodeURIComponent(userID)}`,
+          `/api/auth/profile?userID=${userID}`,
         );
         if (res.status === 404) {
           if (!cancelled) setNotFound(true);
@@ -113,7 +113,7 @@ export default function Profile() {
     (async () => {
       try {
         const res = await fetch(
-          `/api/auth/getFriends?userID=${encodeURIComponent(userID)}`,
+          `/api/friends/getFriends?userID=${userID}`,
         );
         if (!res.ok) throw new Error();
         const data = await res.json();
