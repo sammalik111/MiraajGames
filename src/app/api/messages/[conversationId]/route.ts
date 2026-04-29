@@ -36,7 +36,7 @@ export async function GET(
   const url = new URL(req.url);
   const before = url.searchParams.get("before");
   const limit = url.searchParams.get("limit");
-  const page = await getMessages(conversationId, {
+  const page = await getMessages(conversationId, userId, {
     before: before ? Number(before) : undefined,
     limit: limit ? Number(limit) : undefined,
   });

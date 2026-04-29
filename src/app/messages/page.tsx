@@ -99,13 +99,17 @@ export default function MessagesPage() {
     setLoadingFriends(true);
     try {
       const myID = session?.user?.id;
+      console.log("Fetching friends for user ID:", myID); // Debug log
       if (!myID) throw new Error("No user ID in session");
       const res = await fetch(`/api/auth/getFriends?userID=${myID}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setFriends(data.friends ?? []);
-    } catch {
-      /* silent */
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+      console.error("Error fetching friends:", err);
+      setFriends([]);
+
     } finally {
       setLoadingFriends(false);
     }

@@ -17,7 +17,7 @@
 // statements in `db.transaction(async (tx) => …)`.
 // -----------------------------------------------------------------------------
 
-import { and, asc, desc, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, lt, ne, sql } from "drizzle-orm";
 import {
   db,
   conversations,
@@ -139,7 +139,18 @@ export async function getOrCreateDm(userA: string, userB: string): Promise<Conve
     .from(conversations)
     .where(eq(conversations.id, id))
     .limit(1);
-  if (existing) return hydrateConversation(existing);
+  if (existing) {
+    // If either user had left this DM, add them back. Anyone still in
+    // is left alone (onConflictDoNothing skips them).
+    await db
+      .insert(conversationParticipants)
+      .values([
+        { conversationId: id, userId: userA },
+        { conversationId: id, userId: userB },
+      ])
+      .onConflictDoNothing();
+    return hydrateConversation(existing);
+  }
 
   // Create the conversation + both participant rows. Three statements
   // because no interactive transactions on the HTTP driver — see file
@@ -197,23 +208,15 @@ export async function getConversation(
   return row ? hydrateConversation(row) : null;
 }
 
-// Remove `userId` from the conversation. Symmetric across DMs and groups:
-//   - The caller's participant row goes.
-//   - DMs: if the *other* side is also gone after that, nuke the conversation.
-//     The lone-survivor case (other person is still in the DM) just leaves
-//     them with an "Empty channel" entry until they leave too.
-//   - Groups: the group survives. If the leaver was the creator, ownership
-//     hands off to whoever joined earliest among the rest. If everyone is
-//     gone we drop the conversation.
-//
-// Returns whether the conversation was deleted (so the route can tell the
-// client to fully drop it from the inbox vs. just refresh).
+// Remove the user from the conversation (their side only — the other
+// person keeps the chat). If the leaver was the group creator, ownership
+// passes to whoever's been there the longest. If nobody's left after this,
+// the whole conversation is deleted.
 export async function leaveConversation(
   conversationId: string,
   userId: string,
 ): Promise<{ deleted: boolean }> {
-  // Look up the conversation up-front so we can branch on type and creator
-  // without a second round trip.
+  // Grab the conversation so we know its type and who created it.
   const [conv] = await db
     .select({
       id: conversations.id,
@@ -227,7 +230,7 @@ export async function leaveConversation(
     return { deleted: false };
   }
 
-  // Membership check — caller has to actually be in the convo to leave it.
+  // You can't leave a chat you're not in.
   const wasIn = await isParticipant(conversationId, userId);
   if (!wasIn) {
     throw new Error("not a participant");
@@ -250,14 +253,14 @@ export async function leaveConversation(
     .orderBy(asc(conversationParticipants.joinedAt))
     .limit(1);
 
-  // Empty (group with no one left, or DM where the other side already left)
-  // — drop the conversation. FK cascades wipe messages + reactions.
+  // No one's left — delete the chat. Messages and reactions get
+  // cleaned up automatically by the database.
   if (!survivor) {
     await db.delete(conversations).where(eq(conversations.id, conversationId));
     return { deleted: true };
   }
 
-  // Creator handoff for groups (and DMs too, defensively — cheap when no-op).
+  // If the leaver was the creator, hand off to the longest-standing member.
   if (conv.createdBy === userId) {
     await db
       .update(conversations)
@@ -344,11 +347,39 @@ export async function sendMessage({
   senderId,
   content,
 }: SendMessageInput): Promise<Message> {
-  // Authorize before writing — caller already checks isParticipant in routes,
-  // but the FK on messages.conversation_id will fail anyway if the conv is
-  // missing, and this gives a clearer error for the participant case.
+  // Make sure the sender is actually in the conversation.
   const inConv = await isParticipant(conversationId, senderId);
   if (!inConv) throw new Error("not a participant");
+
+  // For DMs: if the other person had left, sending a message brings
+  // them back into the chat (so it shows up in their inbox again).
+  // Groups don't do this — leaving a group is permanent until someone
+  // re-invites you.
+  const [convMeta] = await db
+    .select({ type: conversations.type })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+  if (convMeta?.type === "dm" && conversationId.startsWith("dm_")) {
+    const current = await db
+      .select({ userId: conversationParticipants.userId })
+      .from(conversationParticipants)
+      .where(eq(conversationParticipants.conversationId, conversationId));
+    // Sender is alone in the chat — figure out the other user from the
+    // DM id (format: "dm_<userA>_<userB>") and add them back.
+    if (current.length < 2) {
+      const rest = conversationId.slice(3); // drop "dm_"
+      let other: string | null = null;
+      if (rest.startsWith(senderId + "_")) other = rest.slice(senderId.length + 1);
+      else if (rest.endsWith("_" + senderId)) other = rest.slice(0, rest.length - senderId.length - 1);
+      if (other) {
+        await db
+          .insert(conversationParticipants)
+          .values({ conversationId, userId: other })
+          .onConflictDoNothing();
+      }
+    }
+  }
 
   const id = `msg_${Date.now()}_${makeId(8)}`;
   const [msgRow] = await db
@@ -403,20 +434,35 @@ export interface MessagePage {
 
 export async function getMessages(
   conversationId: string,
+  userId: string,
   opts: PageOptions = {},
 ): Promise<MessagePage> {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
   const beforeMs = opts.before ?? null;
 
-  // Keyset pagination — uses messages_conv_created_idx
-  // (conversation_id, created_at DESC, id) defined in schema.ts.
-  // Pull `limit` rows DESC, then reverse for ASC display.
+  // Only show messages from when the user joined onward. If they left
+  // and came back, they won't see anything from before their rejoin.
+  const [me] = await db
+    .select({ joinedAt: conversationParticipants.joinedAt })
+    .from(conversationParticipants)
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.userId, userId),
+      ),
+    )
+    .limit(1);
+  // Not in the chat → nothing to show.
+  if (!me) return { messages: [], nextBefore: null };
+
+  // Paginate: grab the newest `limit` rows, then flip to chronological.
+  const baseWhere = and(
+    eq(messagesTable.conversationId, conversationId),
+    gte(messagesTable.createdAt, me.joinedAt),
+  );
   const where = beforeMs
-    ? and(
-        eq(messagesTable.conversationId, conversationId),
-        lt(messagesTable.createdAt, new Date(beforeMs)),
-      )
-    : eq(messagesTable.conversationId, conversationId);
+    ? and(baseWhere, lt(messagesTable.createdAt, new Date(beforeMs)))
+    : baseWhere;
 
   const rows = await db
     .select()
