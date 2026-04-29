@@ -3,9 +3,10 @@
 import Navbar from "@/components/navbar";
 import HudPanel from "@/components/HudPanel";
 import DeleteAccountPopup from "@/components/deleteAccountPopup";
+import ChangeAvatarPopup from "@/components/changeAvatarPopup";
 import { useAuth } from "@/lib/useAuth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { games } from "@/data/gameData";
 import GameCard from "@/components/gameCard";
 import Link from "next/link";
@@ -20,11 +21,11 @@ interface ProfileStats {
 interface Friend {
   id: string;
   name: string;
-  image?: string;
+  image?: string | null;
 }
 
 // Neon monogram avatar — picks a deterministic accent from the name.
-function Avatar({ name, image, size = 48 }: { name: string; image?: string; size?: number }) {
+function Avatar( { setShowAvatarForm, removeAvatar, name, image = null, size = 48 }: { setShowAvatarForm: (show: boolean) => void; removeAvatar: () => void; name: string; image?: string | null; size?: number }) {
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -33,38 +34,76 @@ function Avatar({ name, image, size = 48 }: { name: string; image?: string; size
     .slice(0, 2);
   const accents = ["var(--neon-cyan)", "var(--neon-magenta)", "var(--neon-yellow)", "var(--neon-lime)"];
   const accent = accents[name.charCodeAt(0) % accents.length];
+  const thisUserId = useAuth().session?.user?.name;
+  const myUser = thisUserId == name;
 
   if (image) {
     return (
-      <img
-        src={image}
-        alt={name}
-        className="object-cover flex-shrink-0 hud-clip"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
+      <div style={{ width: size, height: size }} className="relative">
+        <img
+          src={image}
+          alt={name}
+          className="object-cover flex-shrink-0 hud-clip"
+          style={{
+            height: size,
+            fontSize: size * 0.34,
+            background: accent,
+            boxShadow: `0 0 14px -4px ${accent}`,
+          }}
+        />
+        {myUser && (
+          // option to remove avatar if one exists FOR MY PROFILE ONLY
+          <button
+            style={{
+              width: size * 1.0,
+              height: size * 0.25,
+              fontSize: size * 0.08,
+            }}
+            onClick={removeAvatar}
+            className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black text-white border-2 border-[color:var(--border-strong)] mt-2 text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] hover:text-[color:var(--neon-cyan)] hover:ring-cyan transition px-3 py-1"
+            >
+              remove
+            </button>
+          )}
+        </div>
+      );
+    }
   return (
-    <div
-      className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black text-black"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.34,
-        background: accent,
-        boxShadow: `0 0 14px -4px ${accent}`,
-      }}
-    >
-      {initials}
+    <div style={{ width: size, height: size }} className="relative">
+      <div
+        className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black text-black"
+        style={{
+          height: size,
+          fontSize: size * 0.34,
+          background: accent,
+          boxShadow: `0 0 14px -4px ${accent}`,
+        }}
+      >
+        {initials}
+      </div>
+      {/* only for the current user show an option to change avatar if there isnt one already */}
+      {myUser && (
+        <button 
+        style={{
+          height: size * 0.25,
+          fontSize: size * 0.08,
+        }}
+        onClick={() => setShowAvatarForm(true)}
+        className="hud-clip flex items-center justify-center flex-shrink-0 font-display font-black text-white border-2 border-[color:var(--border-strong)] mt-2 text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] hover:text-[color:var(--neon-cyan)] hover:ring-cyan transition px-3 py-1"
+        >
+          add avatar 
+        </button>
+      )}
     </div>
   );
 }
 
 export default function Profile() {
   const router = useRouter();
-  const { user, userId, status, authed, loading, signOut } = useAuth();
+  const { userId, status, authed, loading, signOut } = useAuth();
 
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
+  const [userData, setUserData] = useState<{ name: string; email: string; image: string | null } | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showNicknameForm, setShowNicknameForm] = useState(false);
@@ -77,29 +116,37 @@ export default function Profile() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [showAvatarForm, setShowAvatarForm] = useState(false);
+  
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
 
+  // Hoisted out of the mount effect so any handler (avatar/nickname/etc.)
+  // can re-run it after a successful mutation. router.refresh() doesn't help
+  // because this is a client component — its data lives in useState, not in
+  // the RSC payload.
+  const loadProfile = useCallback(async () => {
+    if (!userId) return;
+    setLoadingProfile(true);
+    const favs = await retrieveFavorites();
+    setFavoriteIds(favs);
+    try {
+      const res = await fetch(`/api/auth/profile?userID=${userId}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setProfileStats(data.stats);
+      setUserData(data.user);
+    } catch (error) {
+      console.error("Profile load error:", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, [userId]);
+
   useEffect(() => {
     if (!authed || !userId) return;
-
-    const load = async () => {
-      setLoadingProfile(true);
-      const favs = await retrieveFavorites();
-      setFavoriteIds(favs);
-      try {
-        const res = await fetch(`/api/auth/profile?userID=${userId}`);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setProfileStats(data.stats);
-      } catch (error) {
-        console.error("Profile load error:", error);
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
 
     const loadFriends = async () => {
       setLoadingFriends(true);
@@ -115,9 +162,9 @@ export default function Profile() {
       }
     };
 
-    load();
+    loadProfile();
     loadFriends();
-  }, [authed, userId]);
+  }, [authed, userId, loadProfile]);
 
   const handleNicknameChange = async (command: "POST" | "DELETE") => {
     try {
@@ -127,13 +174,27 @@ export default function Profile() {
         body: JSON.stringify({ newNickname }),
       });
       if (!res.ok) throw new Error();
-      
+
       setShowNicknameForm(false);
-      // Refresh the page 
-      router.refresh();
-      
+      await loadProfile();
     } catch {
       alert("Unable to update nickname"); // TODO: better error handling UI
+    }
+  };
+
+  const removeAvatar = async () => {
+    try {
+      const res = await fetch("/api/auth/changeAvatar", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        console.error("Failed to remove avatar");
+        return;
+      }
+      await loadProfile();
+    } catch {
+      console.error("Network error. Please try again.");
     }
   };
 
@@ -188,8 +249,9 @@ export default function Profile() {
     );
   }
 
-  const userName = user?.name || "Operator";
-  const userEmail = user?.email || "unknown@mesh";
+  const userName = userData?.name || "Unknown User";
+  const userEmail = userData?.email || "Unknown Email";
+  const userImage = userData?.image || null;
   const favCount = profileStats?.favoriteCount ?? 0;
   const tier = favCount > 3 ? "Pro" : "Starter";
 
@@ -213,7 +275,7 @@ export default function Profile() {
         {/* Identity card */}
         <HudPanel innerClassName="p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-            <Avatar name={userName} size={88} />
+            <Avatar setShowAvatarForm={setShowAvatarForm} removeAvatar={removeAvatar} name={userName} image={userImage} size={88} />
             <div className="flex-1 min-w-0">
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
                 &gt; Handle
@@ -258,6 +320,14 @@ export default function Profile() {
           </dl>
         </HudPanel>
 
+
+        { showAvatarForm && (
+          <ChangeAvatarPopup
+            onClose={() => setShowAvatarForm(false)}
+            onUpdated={loadProfile}
+          />
+        )}
+
         {/* Friends */}
         <section className="mt-12">
           <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
@@ -299,7 +369,7 @@ export default function Profile() {
                     href={`/profile/${friend.id}`}
                     className="flex flex-col items-center gap-2 flex-shrink-0 group"
                   >
-                    <Avatar name={friend.name} image={friend.image} size={60} />
+                    <Avatar setShowAvatarForm={setShowAvatarForm} removeAvatar={removeAvatar} name={friend.name} image={friend.image} size={60} />
                     <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)] group-hover:text-[color:var(--neon-cyan)] transition-colors max-w-[72px] truncate text-center">
                       {friend.name}
                     </span>

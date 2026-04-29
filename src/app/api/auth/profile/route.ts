@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   // One row per user — name + email together so we don't fire two queries.
   const [userRow] = await db
-    .select({ name: displayName, email: users.email })
+    .select({ name: displayName, email: users.email, image: users.avatarUrl })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
@@ -48,6 +48,7 @@ export async function GET(request: Request) {
       id: userId,
       name: userRow.name ?? "Unknown User",
       email: userRow.email ?? "Unknown Email",
+      image: userRow.image ?? null,
     },
     stats,
     favoriteIds,

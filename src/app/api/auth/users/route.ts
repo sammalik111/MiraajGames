@@ -9,6 +9,7 @@ export async function GET() {
     .select({
       id: users.id,
       email: users.email,
+      image: users.avatarUrl,
       name: displayName,
       createdAt: users.createdAt,
     })

@@ -19,16 +19,17 @@ interface ProfileUser {
   id: string;
   name: string;
   email: string;
+  image?: string | null;
 }
 
 interface Friend {
   id: string;
   name: string;
-  image?: string;
+  image?: string|null;
 }
 
 // Neon monogram avatar — picks a deterministic accent from the name.
-function Avatar({ name, image, size = 48 }: { name: string; image?: string; size?: number }) {
+function Avatar({ name, image, size = 48 }: { name: string; image?: string|null; size?: number }) {
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -146,6 +147,7 @@ export default function Profile() {
 
   const userName = user?.name ?? "Unknown User";
   const userEmail = user?.email ?? "Unknown Email";
+  const userAvatar = user?.image || null;
   const favCount = profileStats?.favoriteCount ?? 0;
   const tier = favCount > 3 ? "Pro" : "Starter";
   const favoriteGames = games.filter((g) => favoriteIds.includes(g.id));
@@ -168,7 +170,7 @@ export default function Profile() {
         {/* Identity card */}
         <HudPanel innerClassName="p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-            <Avatar name={userName} size={88} />
+            <Avatar name={userName} size={88} image={userAvatar} />
             <div className="flex-1 min-w-0">
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
                 &gt; Handle

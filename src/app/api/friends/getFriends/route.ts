@@ -18,6 +18,7 @@ export async function GET(request: Request) {
         id: users.id,
         name: displayName,
         email: users.email,
+        image: users.avatarUrl,
       })
       .from(userFriends)
       .innerJoin(users, eq(users.id, userFriends.friendId))
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
       id: r.id,
       // Fall back to email if no display name set, matching the old behavior.
       name: r.name ?? r.email,
+      image: r.image,
     }));
 
     return NextResponse.json({ friends });

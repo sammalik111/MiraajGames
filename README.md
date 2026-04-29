@@ -54,8 +54,16 @@ this discusses how to setup and host this project on AWS
 
 9. NOW create the instance, but it will have a random IP address it attaches, so go back to the Elastic IP pages and associate the IP with this instance ID
 10. update ENV variables if needed and run with the following commands
-10.1 sudo systemctl start miraaj
-10.2 sudo journalctl -u miraaj -f
+10.1 sudo systemctl start <service-name>
+10.2 sudo journalctl -u <service-name> -f
+
+PSA. if you make changes and want to sync your repo to the current version heres the commands once you SSH into the instance 
+
+cd ~/app
+git pull origin main
+npm run build
+sudo systemctl restart <service-name>
+sudo systemctl status <service-name>
 
 
 
