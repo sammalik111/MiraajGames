@@ -15,6 +15,13 @@
       "when": 1777357479833,
       "tag": "0001_purple_vanisher",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777583194731,
+      "tag": "0002_handy_dormammu",
+      "breakpoints": true
     }
   ]
 }

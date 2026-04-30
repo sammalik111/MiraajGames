@@ -22,6 +22,7 @@ import {
   primaryKey,
   index,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -240,7 +241,113 @@ export const conversationParticipantsRelations = relations(
 );
 
 // -----------------------------------------------------------------------------
-// Inferred TS types — import these in app code instead of redefining shapes.
+// Game data — leaderboards + anti-cheat run tokens.
+// -----------------------------------------------------------------------------
+
+// Every submitted score, ever. The audit log.
+export const gameScores = pgTable(
+  "game_scores",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    gameId: integer("game_id").notNull(),
+    score: integer("score").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    // Imagine you have score X on Tetris. Months later I fix a bug that made line clears award too many points, or add a new piece, 
+    // or you slow the speed curve. New scores under the new rules can't compete with old scores. so leaderboards are per-game-version.
+    gameVersion: integer("game_version").notNull().default(1),
+    seasonId: text("season_id"),
+    // Hides the score from public boards if flagged as suspicious.
+    isFlagged: boolean("is_flagged").notNull().default(false),
+    // Links to the run token issued at game start (see gameRuns).
+    runId: text("run_id"),
+    achievedAt: timestamp("achieved_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // An index is a SORTED, separate copy of one or more columns from a table.
+    // Each entry in the index has a pointer back to the full row it came from.
+    // You're storing an extra N-size structure (more memory) BUT lookups get
+    // way faster — things like "last X scores of this game" go from scanning
+    // the whole table to jumping straight to that game's section.
+
+    // USEFUL FOR QUICKLY:
+    // 1. Finding out what games had the most activity in X time
+    // 2. Seeing if there are too many submission to be real attempts in X time by any users
+    index("game_scores_game_recent_idx").on(
+      t.gameId,
+      sql`${t.achievedAt} DESC`,
+    ),
+  ],
+);
+
+// One row per (game, user) holding only their best score. This is what the
+// leaderboard reads from — separate table because reads vastly outnumber writes.
+export const bestScoresForGame = pgTable(
+  "best_scores_for_game",
+  {
+    gameId: integer("game_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    score: integer("score").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    gameVersion: integer("game_version").notNull().default(1),
+    seasonId: text("season_id"),
+    achievedAt: timestamp("achieved_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.gameId, t.userId] }),
+    // seperate mini table of [gameID, score, timestamp, rowNumInGameScores], sorted by 
+    // highest score for each game first, tiebreakers broken by whoever got that score first
+
+    // gameId score   achievedAt	→ row pointer
+    // 8	    3200	  Jan 8	      → row 6
+    // 9	    9000	  Jan 6	      → row 3
+    // 9	    4500	  Jan 3	      → row 1
+    // 9	    4500	  Jan 7	      → row 5
+    // 14	    25	    Jan 9	      → row 7
+    // 14	    12	    Jan 4	      → row 2
+    // 14	    8	      Jan 5	      → row 4
+    index("best_scores_leaderboard_idx").on(
+      t.gameId,
+      sql`${t.score} DESC`,
+      t.achievedAt,
+    ),
+    index("best_scores_user_idx").on(t.userId),
+  ],
+);
+
+// Anti-cheat: server hands out a token at game start; client must return it
+// when submitting a score. Stops people from posting fake scores via curl.
+export const gameRuns = pgTable(
+  "game_runs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    gameId: integer("game_id").notNull(),
+    gameVersion: integer("game_version").notNull().default(1),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    // Set once the token is redeemed — prevents reusing the same token twice.
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  },
+  (t) => [index("game_runs_user_game_idx").on(t.userId, t.gameId)],
+);
+
+
+
+// -----------------------------------------------------------------------------
+// Inferred TS types
 // -----------------------------------------------------------------------------
 
 export type User = typeof users.$inferSelect;
@@ -250,3 +357,9 @@ export type NewConversation = typeof conversations.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type ConversationParticipant = typeof conversationParticipants.$inferSelect;
+export type GameScore = typeof gameScores.$inferSelect;
+export type NewGameScore = typeof gameScores.$inferInsert;
+export type BestScoreForGame = typeof bestScoresForGame.$inferSelect;
+export type NewBestScoreForGame = typeof bestScoresForGame.$inferInsert;
+export type GameRun = typeof gameRuns.$inferSelect;
+export type NewGameRun = typeof gameRuns.$inferInsert;

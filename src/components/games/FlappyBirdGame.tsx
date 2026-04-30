@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 // Canvas dimensions — fixed so physics constants stay consistent across screens.
 const W = 480;
@@ -20,12 +21,20 @@ type Pipe = { x: number; gapY: number; passed: boolean };
 type Cloud = { x: number; y: number; scale: number; speed: number };
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; color: string };
 
-export default function FlappyBirdGame() {
+export default function FlappyBirdGame({ onGameEnd }: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [score, setScore] = useState(0);
-  const [best, setBest] = useState(0);
   const [running, setRunning] = useState(false);
   const [dead, setDead] = useState(false);
+  // Score tracked in a ref so the death handler can read the final value
+  // without being stale across renders.
+  const scoreRef = useRef(0);
+  // Guard so onGameEnd fires exactly once per run.
+  const endedRef = useRef(false);
+  // Mirror running/dead into refs so the rAF loop can read them without
+  // re-creating the effect (which would reset `prev` and stutter the game).
+  const runningRef = useRef(false);
+  const deadRef = useRef(false);
 
   const birdY = useRef(H / 2);
   const birdV = useRef(0);
@@ -47,23 +56,14 @@ export default function FlappyBirdGame() {
     }));
   }, []);
 
-  const reset = useCallback(() => {
-    birdY.current = H / 2;
-    birdV.current = 0;
-    pipes.current = [];
-    particles.current = [];
-    lastPipeAt.current = 0;
-    setScore(0);
-    setDead(false);
-  }, []);
-
   const flap = useCallback(() => {
-    if (dead) {
-      reset();
+    // Once dead, ignore input — the GameShell's overlay handles retry by
+    // remounting this component fresh.
+    if (deadRef.current) return;
+    if (!runningRef.current) {
+      runningRef.current = true;
       setRunning(true);
-      return;
     }
-    if (!running) setRunning(true);
     birdV.current = JUMP_V;
     // Tiny puff trail on flap
     for (let i = 0; i < 4; i++) {
@@ -76,7 +76,31 @@ export default function FlappyBirdGame() {
         color: "rgba(255,255,255,0.6)",
       });
     }
-  }, [dead, running, reset]);
+  }, []);
+
+  // Centralized death handler — fires the shell callback exactly once and
+  // spawns the death-feather particles. Called from any collision branch.
+  const die = useCallback(
+    (bx: number, by: number) => {
+      if (endedRef.current) return;
+      endedRef.current = true;
+      deadRef.current = true;
+      setDead(true);
+      flashAlpha.current = 1;
+      for (let i = 0; i < 14; i++) {
+        particles.current.push({
+          x: bx,
+          y: by,
+          vx: (Math.random() - 0.5) * 6,
+          vy: -2 - Math.random() * 4,
+          life: 60,
+          color: "#ffd400",
+        });
+      }
+      onGameEnd(scoreRef.current);
+    },
+    [onGameEnd],
+  );
 
   useEffect(() => {
     seedClouds();
@@ -259,7 +283,7 @@ export default function FlappyBirdGame() {
         drawCloud(c.x, c.y, c.scale);
       }
 
-      if (running && !dead) {
+      if (runningRef.current && !deadRef.current) {
         birdV.current += GRAVITY;
         birdY.current += birdV.current;
 
@@ -275,47 +299,21 @@ export default function FlappyBirdGame() {
         for (const p of pipes.current) {
           if (!p.passed && p.x + PIPE_W < W / 4 - BIRD_R) {
             p.passed = true;
-            setScore((s) => {
-              const ns = s + 1;
-              setBest((b) => Math.max(b, ns));
-              return ns;
-            });
+            scoreRef.current += 1;
+            setScore(scoreRef.current);
           }
         }
 
         const bx = W / 4;
         const by = birdY.current;
         if (by + BIRD_R >= H - GROUND_H || by - BIRD_R <= 0) {
-          setDead(true);
-          flashAlpha.current = 1;
-          // Death feathers
-          for (let i = 0; i < 14; i++) {
-            particles.current.push({
-              x: bx,
-              y: by,
-              vx: (Math.random() - 0.5) * 6,
-              vy: -2 - Math.random() * 4,
-              life: 60,
-              color: "#ffd400",
-            });
-          }
+          die(bx, by);
         } else {
           for (const p of pipes.current) {
             const inX = bx + BIRD_R > p.x && bx - BIRD_R < p.x + PIPE_W;
             const outOfGap = by - BIRD_R < p.gapY || by + BIRD_R > p.gapY + PIPE_GAP;
             if (inX && outOfGap) {
-              setDead(true);
-              flashAlpha.current = 1;
-              for (let i = 0; i < 14; i++) {
-                particles.current.push({
-                  x: bx,
-                  y: by,
-                  vx: (Math.random() - 0.5) * 6,
-                  vy: -2 - Math.random() * 4,
-                  life: 60,
-                  color: "#ffd400",
-                });
-              }
+              die(bx, by);
               break;
             }
           }
@@ -323,7 +321,7 @@ export default function FlappyBirdGame() {
 
         groundOffset.current += PIPE_SPEED * dt;
         wingPhase.current += 0.4 * dt;
-      } else if (!dead) {
+      } else if (!deadRef.current) {
         // Idle wing flap on title screen
         wingPhase.current += 0.2 * dt;
       }
@@ -380,14 +378,14 @@ export default function FlappyBirdGame() {
       ctx.font = "bold 44px monospace";
       ctx.textAlign = "center";
       ctx.fillStyle = "rgba(0,0,0,0.4)";
-      ctx.fillText(String(score), W / 2 + 3, 73);
+      ctx.fillText(String(scoreRef.current), W / 2 + 3, 73);
       ctx.fillStyle = "#fff";
       ctx.strokeStyle = "#222";
       ctx.lineWidth = 4;
-      ctx.strokeText(String(score), W / 2, 70);
-      ctx.fillText(String(score), W / 2, 70);
+      ctx.strokeText(String(scoreRef.current), W / 2, 70);
+      ctx.fillText(String(scoreRef.current), W / 2, 70);
 
-      if (!running) {
+      if (!runningRef.current) {
         // Title plate
         ctx.fillStyle = "rgba(0,0,0,0.55)";
         ctx.fillRect(40, H / 2 - 90, W - 80, 180);
@@ -404,25 +402,9 @@ export default function FlappyBirdGame() {
         ctx.fillStyle = "#5fb6ec";
         ctx.font = "12px monospace";
         ctx.fillText("▸ tap to start", W / 2, H / 2 + 55);
-      } else if (dead) {
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.fillRect(40, H / 2 - 100, W - 80, 200);
-        ctx.strokeStyle = "#ff5555";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(40, H / 2 - 100, W - 80, 200);
-        ctx.fillStyle = "#ff5555";
-        ctx.font = "bold 36px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", W / 2, H / 2 - 50);
-        ctx.fillStyle = "#fff";
-        ctx.font = "20px monospace";
-        ctx.fillText(`Score: ${score}`, W / 2, H / 2 - 10);
-        ctx.fillStyle = "#ffd400";
-        ctx.fillText(`Best:  ${best}`, W / 2, H / 2 + 18);
-        ctx.fillStyle = "#fff";
-        ctx.font = "14px monospace";
-        ctx.fillText("Click / Space to retry", W / 2, H / 2 + 60);
       }
+      // No in-canvas "game over" overlay — GameShell renders the leaderboard
+      // panel on top once onGameEnd fires.
 
       rafId.current = requestAnimationFrame(draw);
     };
@@ -431,13 +413,15 @@ export default function FlappyBirdGame() {
     return () => {
       if (rafId.current) cancelAnimationFrame(rafId.current);
     };
-  }, [running, dead, score, best]);
+    // Loop sets up once per mount. Game state is read from refs so score
+    // changes don't tear down + restart the rAF (which used to reset `prev`
+    // and stutter every pipe pass).
+  }, [die]);
 
   return (
     <div className="flex flex-col items-center gap-3">
       <div className="flex gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
         <span>Score: <span className="text-[color:var(--neon-cyan)]">{score}</span></span>
-        <span>Best: <span className="text-[color:var(--neon-magenta)]">{best}</span></span>
       </div>
       <canvas
         ref={canvasRef}
@@ -448,12 +432,6 @@ export default function FlappyBirdGame() {
         className="border border-[color:var(--border-strong)] cursor-pointer max-w-full h-auto rounded-sm shadow-[0_0_24px_rgba(0,0,0,0.4)]"
         style={{ touchAction: "none", imageRendering: "auto" }}
       />
-      <button
-        onClick={() => { reset(); setRunning(false); }}
-        className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-2 border border-[color:var(--border-strong)] text-[color:var(--fg)] hover:ring-cyan transition"
-      >
-        Reset
-      </button>
     </div>
   );
 }

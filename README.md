@@ -193,6 +193,33 @@ echo "  4. visit https://miraajgames.com"
 
 
 
+# HOW THE DATABASE WORKS
+
+1. db/schema.ts is the source of truth. It defines every table and index in TypeScript.
+   Drizzle reads this file to (a) generate SQL migrations and (b) give your app
+   typed query builders.
+
+2. db/index.ts opens the connection on app boot:
+   - reads DATABASE_URL from .env.local (throws if missing)
+   - creates a Neon client that talks to Postgres over HTTPS (serverless)
+   - wraps it with Drizzle so you get type-safe queries
+   - exports it as `db`. Import as: import { db } from "@/db"
+
+3. When you change schema.ts, sync the live DB with:
+
+   npm run db:generate
+   # writes a SQL file in ./drizzle/ describing what changed since the last migration for review
+
+   npm run db:migrate
+   # runs any unapplied SQL files against the Neon DB and applies changes
+
+   npm run db:studio
+   # visualize the changes if wanted
+
+
+
+
+
 
 # system design
 

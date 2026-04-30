@@ -1,21 +1,7 @@
 import Navbar from "@/components/navbar";
 import HudPanel from "@/components/HudPanel";
 import { games } from "@/data/gameData";
-import TicTacToe from "@/components/games/TicTacToe";
-import MemoryGame from "@/components/games/MemoryGame";
-import PlatformerGame from "@/components/games/PlatformerGame";
-import PoolGame from "@/components/games/PoolGame";
-import ShooterGame from "@/components/games/ShooterGame";
-import ChessGame from "@/components/games/ChessGame";
-import SpaceInvadersGame from "@/components/games/SpaceInvadersGame";
-import PacmanGame from "@/components/games/PacmanGame";
-import TetrisGame from "@/components/games/TetrisGame";
-import CrosswordGame from "@/components/games/CrosswordGame";
-import MinesweeperGame from "@/components/games/MinesweeperGame";
-import SodukuGame from "@/components/games/sodukuGame";
-import BattleshipGame from "@/components/games/battleshipGame";
-import FlappyBirdGame from "@/components/games/FlappyBirdGame";
-import CrossyRoadGame from "@/components/games/CrossyRoadGame";
+import GameRunner from "@/components/games/GameRunner";
 import Link from "next/link";
 
 export function generateStaticParams() {
@@ -52,32 +38,6 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
       </div>
     );
   }
-
-  const renderGame = () => {
-    switch (game.id) {
-      case 1: return <PlatformerGame />;
-      case 2: return <PoolGame />;
-      case 3: return <ShooterGame />;
-      case 4: return <ChessGame />;
-      case 5: return <TicTacToe />;
-      case 6: return <MemoryGame />;
-      case 7: return <SpaceInvadersGame />;
-      case 8: return <PacmanGame />;
-      case 9: return <TetrisGame />;
-      case 10: return <CrosswordGame />;
-      case 11: return <BattleshipGame />;
-      case 12: return <MinesweeperGame />;
-      case 13: return <SodukuGame />;
-      case 14: return <FlappyBirdGame />;
-      case 15: return <CrossyRoadGame />;
-      default:
-        return (
-          <p className="text-center font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
-            &gt; Cabinet build pending...
-          </p>
-        );
-    }
-  };
 
   return (
     <div className="min-h-screen text-[color:var(--fg)]">
@@ -120,7 +80,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
             {/* Cabinet screen */}
             <HudPanel className="mt-6" innerClassName="p-5 sm:p-6 bg-[color:var(--surface-2)]">
               <div className="scanline-overlay">
-                {renderGame()}
+                <GameRunner gameId={game.id} />
               </div>
             </HudPanel>
           </section>

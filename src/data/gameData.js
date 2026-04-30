@@ -5,6 +5,8 @@ export const games = [
     description: "Run, jump, and collect stars in a colorful platforming demo.",
     creator: "Miraaj Studios",
     theme: "platformer",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 2,
@@ -12,6 +14,8 @@ export const games = [
     description: "Take the shot and sink the solids and stripes in a casual pool table simulator.",
     creator: "Pocket Arcade",
     theme: "pool",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 3,
@@ -19,6 +23,8 @@ export const games = [
     description: "Survive waves of enemies in a fast-paced top-down arena.",
     creator: "Arcade Lab",
     theme: "shooter",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 4,
@@ -26,6 +32,8 @@ export const games = [
     description: "Plan your strategy across the board with a polished chess interface.",
     creator: "Royal Code",
     theme: "chess",
+    version: 1,
+    sortedOrder: "DESC",
   },
   {
     id: 5,
@@ -33,6 +41,8 @@ export const games = [
     description: "Classic grid-based strategy with interactive win detection.",
     creator: "Miraaj Games",
     theme: "puzzle",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 6,
@@ -40,6 +50,8 @@ export const games = [
     description: "Flip cards and match pairs in a quick, addictive brain teaser.",
     creator: "Miraaj Games",
     theme: "strategy",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 7,
@@ -47,6 +59,8 @@ export const games = [
     description: "Defend Earth from alien invaders in this classic arcade shooter.",
     creator: "Retro Arcade",
     theme: "shooter",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 8,
@@ -54,6 +68,8 @@ export const games = [
     description: "Navigate mazes, eat dots, and avoid ghosts in this iconic maze game.",
     creator: "Namco Classics",
     theme: "arcade",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 9,
@@ -61,6 +77,8 @@ export const games = [
     description: "Arrange falling blocks to clear lines in this timeless puzzle game.",
     creator: "Puzzle Masters",
     theme: "puzzle",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 10,
@@ -68,6 +86,8 @@ export const games = [
     description: "Solve word puzzles and expand your vocabulary with themed crosswords.",
     creator: "Word Games Inc",
     theme: "puzzle",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 11,
@@ -75,6 +95,8 @@ export const games = [
     description: "Hunt down the enemy fleet in a grid-based duel against a smart computer opponent.",
     creator: "Miraaj Games",
     theme: "strategy",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 12,
@@ -82,6 +104,8 @@ export const games = [
     description: "Sweep the randomized minefield using number clues and flags to mark the mines.",
     creator: "Miraaj Games",
     theme: "puzzle",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 13,
@@ -89,6 +113,8 @@ export const games = [
     description: "Fill the 9x9 grid with a freshly generated puzzle every game.",
     creator: "Miraaj Games",
     theme: "puzzle",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 14,
@@ -96,6 +122,8 @@ export const games = [
     description: "Tap to flap and dodge endless pipes — survive as long as you can.",
     creator: "Miraaj Games",
     theme: "arcade",
+    version: 1,
+    sortedOrder: "DESC" 
   },
   {
     id: 15,
@@ -103,5 +131,7 @@ export const games = [
     description: "Hop across roads and rivers through escalating levels of chaos.",
     creator: "Miraaj Games",
     theme: "arcade",
+    version: 1,
+    sortedOrder: "DESC" 
   },
 ];

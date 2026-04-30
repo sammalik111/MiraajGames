@@ -302,7 +302,7 @@ export default function MessagesPage() {
             ) : (
               <div className="flex gap-5 overflow-x-auto pb-2">
                 {friends.map((friend) => (
-                  <Link href={`/profile/${friend.id}`} key={friend.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 group relative">
+                  <div key={friend.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 group relative">
                     {removingId === friend.id ? (
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="w-14 h-14 hud-clip border border-[color:var(--neon-magenta)] bg-[color:var(--surface-2)] flex items-center justify-center">
@@ -329,7 +329,9 @@ export default function MessagesPage() {
                     ) : (
                       <>
                         <div className="relative">
-                          <Avatar name={friend.name} image={friend.image} size={56} />
+                          <Link href={`/profile/${friend.id}`}>
+                            <Avatar name={friend.name} image={friend.image} size={56} />
+                          </Link>
                           <button
                             onClick={() => setRemovingId(friend.id)}
                             className="absolute -top-1 -right-1 w-5 h-5 bg-[color:var(--surface)] border border-[color:var(--border-strong)] text-[color:var(--fg-muted)] text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:border-[color:var(--neon-magenta)] hover:text-[color:var(--neon-magenta)]"
@@ -343,7 +345,7 @@ export default function MessagesPage() {
                         </span>
                       </>
                     )}
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}
