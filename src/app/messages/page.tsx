@@ -22,7 +22,7 @@ interface InboxEntry {
   // this over the derived join-of-other-users.
   name: string | null;
   participants: string[];
-  otherUsers: { id: string; name: string }[];
+  otherUsers: { id: string; name: string; image?: string | null }[];
   lastMessageAt: number | null;
   lastMessagePreview: string | null;
   lastMessageSenderId: string | null;
@@ -77,6 +77,13 @@ function entryLabel(entry: InboxEntry): string {
 
 function entryAvatarName(entry: InboxEntry): string {
   return entry.otherUsers[0]?.name ?? "?";
+}
+
+// For DMs, show the other user's avatar. For groups, fall back to the first
+// other user's avatar — the API doesn't store a group image, so this is the
+// closest we can do without schema changes.
+function entryAvatarImage(entry: InboxEntry): string | undefined {
+  return entry.otherUsers[0]?.image ?? undefined;
 }
 
 function formatTimestamp(ts: number | null): string {
@@ -379,6 +386,7 @@ export default function MessagesPage() {
               {inbox.map((entry) => {
                 const label = entryLabel(entry);
                 const avatarName = entryAvatarName(entry);
+                const avatarImage = entryAvatarImage(entry);
                 const unread = entry.unreadCount > 0;
                 
                 return (
@@ -390,7 +398,7 @@ export default function MessagesPage() {
                       className="flex items-center gap-4 px-3 py-3 pr-10 hover:bg-[color:var(--surface-2)] transition flex-1 min-w-0"
                     >
                       <div className="relative">
-                        <Avatar name={avatarName} size={44} />
+                        <Avatar name={avatarName} image={avatarImage} size={44} />
                         {unread && (
                           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[color:var(--neon-cyan)] dark:glow-cyan" />
                         )}

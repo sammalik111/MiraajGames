@@ -31,6 +31,7 @@ export async function GET() {
           id: users.id,
           name: displayName,
           email: users.email,
+          image: users.avatarUrl,
         })
         .from(users)
         .where(inArray(users.id, otherIds))
@@ -46,7 +47,7 @@ export async function GET() {
       .filter((id) => id !== userId)
       .map((id) => {
         const u = userById.get(id);
-        return { id, name: u?.name ?? u?.email ?? id };
+        return { id, name: u?.name ?? u?.email ?? id, image: u?.image || null };
       }),
     lastMessageAt: conversation.lastMessageAt,
     lastMessagePreview: conversation.lastMessagePreview,
