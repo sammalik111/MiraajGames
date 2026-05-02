@@ -20,13 +20,12 @@ interface Props {
   onRetry: () => void;
 }
 
-// Overlay shown when a run ends. Three sections:
-//   1. Score callout (huge number, accent on whether you topped the board)
-//   2. Top 10 list — your row highlighted, podium ranks tinted
-//   3. Action row
+// Post-run overlay: shows the player's score and the top 10 board.
+// Styled to match the rest of the app's HUD panels — single cyan accent,
+// thin borders, mono labels — instead of the earlier multi-color treatment.
 //
-// 250ms delay before fetching the board so the just-submitted score has
-// time to land in the DB. Invisible to humans, plenty for a Neon write.
+// 250ms delay before fetching so the just-submitted score has settled in
+// the DB. Invisible to humans, plenty for a Neon write.
 export default function GameOverPanel({ gameId, score, onRetry }: Props) {
   const { userId } = useAuth();
   const [entries, setEntries] = useState<Entry[] | null>(null);
@@ -55,164 +54,121 @@ export default function GameOverPanel({ gameId, score, onRetry }: Props) {
   }, [gameId, score]);
 
   const myRow = entries?.find((e) => e.userId === userId);
-  const beatTop = myRow?.rank === 1;
-  // Direction-aware "you didn't make top 10" only fires once data is in.
   const inTop10 = !!myRow;
-
-  // Headline color cue: gold if #1, cyan if in top 10, magenta otherwise.
-  const headlineColor = beatTop
-    ? "var(--neon-yellow)"
-    : inTop10
-      ? "var(--neon-cyan)"
-      : "var(--neon-magenta)";
-  const headlineText = beatTop ? "HIGH SCORE" : inTop10 ? "RANKED" : "RUN OVER";
+  const beatTop = myRow?.rank === 1;
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-[2px] p-4">
+    <div
+      className="absolute inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-[2px] p-4"
+      style={{ animation: "panelFade 220ms ease-out" }}
+    >
+      <style jsx>{`
+        @keyframes panelFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes panelRise {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
       <div
-        className="w-full max-w-sm border bg-[color:var(--surface-1)] shadow-[0_0_60px_-10px_rgba(0,255,255,0.4)]"
-        style={{
-          borderColor: headlineColor,
-          clipPath:
-            "polygon(0 12px, 12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px))",
-        }}
+        className="w-full max-w-sm border border-[color:var(--border-strong)] bg-[color:var(--surface-1)]"
+        style={{ animation: "panelRise 260ms ease-out" }}
       >
-        {/* Header strip */}
-        <div
-          className="px-5 py-2 flex items-center justify-between"
-          style={{
-            background: `linear-gradient(90deg, ${headlineColor}22, transparent)`,
-            borderBottom: `1px solid ${headlineColor}44`,
-          }}
-        >
-          <span
-            className="font-mono text-[10px] uppercase tracking-[0.3em]"
-            style={{ color: headlineColor }}
-          >
-            ▸ {headlineText}
+        {/* Header bar */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[color:var(--border)] bg-[color:var(--surface-2)]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+            ▸ Run Complete
           </span>
           {myRow && (
-            <span
-              className="font-mono text-[10px] uppercase tracking-[0.3em]"
-              style={{ color: headlineColor }}
-            >
-              RANK #{myRow.rank}
+            <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+              Rank #{myRow.rank}
             </span>
           )}
         </div>
 
         {/* Score */}
-        <div className="px-5 pt-5 pb-4 text-center">
+        <div className="px-5 pt-5 pb-4 text-center border-b border-[color:var(--border)]">
           <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)]">
-            ── Final Score ──
+            {beatTop ? "New high score" : "Final score"}
           </p>
-          <p
-            className="font-display font-black text-6xl mt-1 leading-none tabular-nums"
-            style={{
-              color: headlineColor,
-              textShadow: `0 0 24px ${headlineColor}88`,
-            }}
-          >
+          <p className="font-display font-black text-5xl mt-1 leading-none tabular-nums text-[color:var(--fg)]">
             {score.toLocaleString()}
           </p>
         </div>
 
         {/* Leaderboard */}
-        <div className="px-5 pb-4">
-          <div className="flex items-center justify-between mb-2">
+        <div className="px-4 pt-3 pb-4">
+          <div className="flex items-center justify-between mb-2 px-1">
             <span className="font-mono text-[9px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)]">
               Top 10
             </span>
             <span className="font-mono text-[9px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)]">
-              {isDesc ? "↓ HIGH" : "↑ LOW"}
+              {isDesc ? "high → low" : "low → high"}
             </span>
           </div>
 
-          <div className="border-t border-[color:var(--border)]">
-            {loading ? (
-              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)] py-6 text-center">
-                <span className="blink">●</span> Syncing scores
-              </p>
-            ) : entries && entries.length > 0 ? (
-              <ol className="divide-y divide-[color:var(--border)] max-h-[220px] overflow-y-auto">
-                {entries.map((e) => {
-                  const mine = e.userId === userId;
-                  const podium = e.rank <= 3;
-                  const rankColor =
-                    e.rank === 1
-                      ? "var(--neon-yellow)"
-                      : e.rank === 2
-                        ? "var(--neon-cyan)"
-                        : e.rank === 3
-                          ? "var(--neon-magenta)"
-                          : "var(--fg-muted)";
-                  return (
-                    <li
-                      key={e.userId}
-                      className="flex items-center gap-3 px-2 py-2 font-mono text-xs"
-                      style={
-                        mine
-                          ? {
-                              background: `${headlineColor}18`,
-                              boxShadow: `inset 3px 0 0 ${headlineColor}`,
-                            }
-                          : undefined
-                      }
+          {loading ? (
+            <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)] py-6 text-center">
+              <span className="blink">●</span> Syncing scores
+            </p>
+          ) : entries && entries.length > 0 ? (
+            <ol className="border border-[color:var(--border)] divide-y divide-[color:var(--border)] max-h-[240px] overflow-y-auto">
+              {entries.map((e) => {
+                const mine = e.userId === userId;
+                return (
+                  <li
+                    key={e.userId}
+                    className={`flex items-center gap-3 px-3 py-2 font-mono text-xs ${
+                      mine
+                        ? "bg-[color:var(--neon-cyan)]/10 border-l-2 border-[color:var(--neon-cyan)]"
+                        : "border-l-2 border-transparent"
+                    }`}
+                  >
+                    <span className="w-7 text-[color:var(--fg-muted)] tabular-nums text-[11px]">
+                      {String(e.rank).padStart(2, "0")}
+                    </span>
+                    <span
+                      className={`flex-1 truncate ${mine ? "text-[color:var(--fg)]" : "text-[color:var(--fg-muted)]"}`}
                     >
-                      <span
-                        className="font-display font-black text-sm w-7 tabular-nums"
-                        style={{ color: rankColor }}
-                      >
-                        {String(e.rank).padStart(2, "0")}
-                      </span>
-                      <span
-                        className={`flex-1 truncate ${podium ? "text-[color:var(--fg)]" : "text-[color:var(--fg-muted)]"}`}
-                      >
-                        {e.name}
-                        {mine && (
-                          <span
-                            className="ml-1 text-[9px] uppercase tracking-[0.25em]"
-                            style={{ color: headlineColor }}
-                          >
-                            · you
-                          </span>
-                        )}
-                      </span>
-                      <span
-                        className="font-display font-bold tabular-nums"
-                        style={{ color: mine ? headlineColor : "var(--fg)" }}
-                      >
-                        {e.score.toLocaleString()}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            ) : (
-              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)] py-6 text-center">
-                &gt; First on the board
-              </p>
-            )}
-          </div>
+                      {e.name}
+                      {mine && (
+                        <span className="ml-1.5 text-[9px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                          you
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={`tabular-nums font-bold ${mine ? "text-[color:var(--neon-cyan)]" : "text-[color:var(--fg)]"}`}
+                    >
+                      {e.score.toLocaleString()}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)] py-6 text-center border border-dashed border-[color:var(--border)]">
+              &gt; First on the board
+            </p>
+          )}
 
           {!loading && !inTop10 && entries && entries.length > 0 && (
             <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)] text-center">
-              ✕ Outside top 10 · run it back
+              outside top 10 · run it back
             </p>
           )}
         </div>
 
-        {/* Actions */}
-        <div className="px-5 pb-5 pt-1">
+        {/* Action */}
+        <div className="px-4 pb-4">
           <button
             onClick={onRetry}
-            className="w-full font-mono text-xs uppercase tracking-[0.3em] py-3 text-black transition hover:brightness-110"
-            style={{
-              background: headlineColor,
-              boxShadow: `0 0 20px -4px ${headlineColor}`,
-            }}
+            className="w-full font-mono text-xs uppercase tracking-[0.25em] py-3 bg-[color:var(--neon-cyan)] text-black hover:brightness-110 transition"
           >
-            ↻ Run Again
+            ↻ Play Again
           </button>
         </div>
       </div>

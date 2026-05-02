@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import type { GameProps } from "./types";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -280,7 +281,7 @@ function AdPlaceholder() {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export default function ShooterGame() {
+export default function ShooterGame({ onGameEnd }: GameProps) {
   const [uiScore, setUiScore] = useState(0);
   const [uiLives, setUiLives] = useState(3);
   const [uiLevel, setUiLevel] = useState(1);
@@ -295,8 +296,17 @@ export default function ShooterGame() {
   const phaseRef    = useRef<"playing" | "levelComplete" | "gameOver" | "win">("playing");
   const canShootRef = useRef(true);
   const mousePosRef = useRef({ x: VIEW_W / 2, y: VIEW_H / 2 });
+  const endedRef = useRef(false);
+  // Track enemies killed across all levels (the leaderboard score).
+  const killsRef = useRef(0);
 
   phaseRef.current = phase;
+
+  const endGame = useCallback(() => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    onGameEnd(killsRef.current);
+  }, [onGameEnd]);
 
   const drawFrame = useCallback(() => {
     const canvas = canvasRef.current;
@@ -526,6 +536,7 @@ export default function ShooterGame() {
         if (Math.sqrt(dx * dx + dy * dy) < BULLET_R + ENEMY_SIZE / 2) {
           enemy.alive = false;
           w.score += 50;
+          killsRef.current += 1;
           setUiScore(w.score);
           return false;
         }
@@ -540,7 +551,7 @@ export default function ShooterGame() {
       if (Math.sqrt(dx * dx + dy * dy) < BULLET_R + PLAYER_SIZE / 2) {
         w.lives--;
         setUiLives(w.lives);
-        if (w.lives <= 0) setPhase("gameOver");
+        if (w.lives <= 0) { setPhase("gameOver"); endGame(); }
         return false;
       }
       return true;
@@ -554,6 +565,7 @@ export default function ShooterGame() {
       setUiScore(w.score);
       if (w.level >= LEVEL_ENEMIES.length) {
         setPhase("win");
+        endGame();
       } else {
         const msg = `Level ${w.level} Complete! +200 pts`;
         setLevelMsg(msg);
@@ -571,7 +583,7 @@ export default function ShooterGame() {
     }
 
     drawFrame();
-  }, [drawFrame]);
+  }, [drawFrame, endGame]);
 
   // RAF loop
   useEffect(() => {
@@ -593,13 +605,6 @@ export default function ShooterGame() {
   }, []);
 
   useEffect(() => { drawFrame(); }, [drawFrame]);
-
-  const restartGame = () => {
-    worldRef.current = buildWorld(0, 0, 3);
-    setUiScore(0); setUiLives(3); setUiLevel(1); setUiStealth(true);
-    canShootRef.current = true;
-    setPhase("playing");
-  };
 
   const enemiesLeft = worldRef.current.enemies.filter((e) => e.alive).length;
 
@@ -670,20 +675,6 @@ export default function ShooterGame() {
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 rounded-lg">
                   <div className="text-3xl font-black text-yellow-400 mb-2">{levelMsg}</div>
                   <div className="text-slate-300">Loading next level…</div>
-                </div>
-              )}
-              {phase === "gameOver" && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 rounded-lg">
-                  <div className="text-4xl font-black text-red-400 mb-2">GAME OVER</div>
-                  <div className="text-slate-300 mb-6">Score: {uiScore}</div>
-                  <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-lg" onClick={restartGame}>Play Again</button>
-                </div>
-              )}
-              {phase === "win" && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 rounded-lg">
-                  <div className="text-4xl font-black text-green-400 mb-2">Mission Complete! You Win!</div>
-                  <div className="text-slate-300 mb-6">Final Score: {uiScore}</div>
-                  <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-lg" onClick={restartGame}>Play Again</button>
                 </div>
               )}
             </div>

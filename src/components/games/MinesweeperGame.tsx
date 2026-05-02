@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 // -----------------------------------------------------------------------------
 // Minesweeper — randomized board
@@ -83,20 +84,41 @@ function floodReveal(cells: Cell[], start: number): Cell[] {
   return out;
 }
 
-export default function MinesweeperGame() {
+export default function MinesweeperGame({ onGameEnd }: GameProps) {
   const [cells, setCells] = useState<Cell[]>(() => makeBoard());
   const [state, setState] = useState<"playing" | "lost" | "won">("playing");
+  const [elapsed, setElapsed] = useState(0);
+  // Game starts on mount — record start time, tick a display timer.
+  const startRef = useRef<number>(Date.now());
+  const endedRef = useRef(false);
 
   const flagCount = useMemo(() => cells.filter((c) => c.flagged).length, [cells]);
 
-  const reset = () => {
-    setCells(makeBoard());
-    setState("playing");
-  };
+  useEffect(() => {
+    if (state !== "playing") return;
+    const id = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [state]);
 
   const checkWin = (next: Cell[]) => {
     const remaining = next.filter((c) => !c.mine && !c.revealed).length;
     return remaining === 0;
+  };
+
+  const finish = (finalState: "won" | "lost") => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    const seconds = Math.max(1, Math.floor((Date.now() - startRef.current) / 1000));
+    setState(finalState);
+    if (finalState === "won") {
+      onGameEnd(seconds);
+    } else {
+      // Loss — report a large sentinel so leaderboard ASC sorts losses behind wins.
+      // Shell still records the run; treat any non-clear as worst case.
+      onGameEnd(99999);
+    }
   };
 
   const handleReveal = (idx: number) => {
@@ -106,12 +128,12 @@ export default function MinesweeperGame() {
     if (cell.mine) {
       const next = cells.map((c) => (c.mine ? { ...c, revealed: true } : c));
       setCells(next);
-      setState("lost");
+      finish("lost");
       return;
     }
     const next = floodReveal(cells, idx);
     setCells(next);
-    if (checkWin(next)) setState("won");
+    if (checkWin(next)) finish("won");
   };
 
   const handleFlag = (e: React.MouseEvent, idx: number) => {
@@ -132,9 +154,7 @@ export default function MinesweeperGame() {
     <div className="flex flex-col items-center gap-5">
       <h1 className="text-3xl font-bold text-black dark:text-white">Minesweeper</h1>
       <div className="text-lg font-semibold text-zinc-700 dark:text-zinc-300 h-7">
-        {state === "won" && <span className="text-green-600">🎉 You cleared the field!</span>}
-        {state === "lost" && <span className="text-red-600">💥 Boom! You hit a mine.</span>}
-        {state === "playing" && <span>Mines: {MINES - flagCount} · Flagged: {flagCount}</span>}
+        <span>Time: {elapsed}s · Mines: {MINES - flagCount} · Flagged: {flagCount}</span>
       </div>
 
       <div
@@ -172,13 +192,6 @@ export default function MinesweeperGame() {
       </div>
 
       <p className="text-xs text-zinc-500 dark:text-zinc-400">Left-click to reveal · Right-click to flag</p>
-
-      <button
-        onClick={reset}
-        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
-      >
-        New Game
-      </button>
     </div>
   );
 }

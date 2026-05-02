@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 // -----------------------------------------------------------------------------
 // Tic Tac Toe
@@ -55,13 +56,22 @@ function aiPick(b: Cell[]): number {
   return 0; // unreachable
 }
 
-export default function TicTacToe() {
+export default function TicTacToe({ onGameEnd }: GameProps) {
   const [board, setBoard] = useState<Cell[]>(Array(9).fill(null));
   const [xTurn, setXTurn] = useState(true);
+  const endedRef = useRef(false);
 
   const w = winner(board);
   const full = board.every((c) => c !== null);
   const done = w !== null || full;
+
+  // Fire onGameEnd exactly once when the game resolves.
+  useEffect(() => {
+    if (!done || endedRef.current) return;
+    endedRef.current = true;
+    // Player wins only when X wins; loss or draw → 0.
+    onGameEnd(w === "X" ? 1 : 0);
+  }, [done, w, onGameEnd]);
 
   // Computer plays O whenever it's O's turn.
   useEffect(() => {
@@ -85,11 +95,6 @@ export default function TicTacToe() {
     next[i] = "X";
     setBoard(next);
     setXTurn(false);
-  };
-
-  const reset = () => {
-    setBoard(Array(9).fill(null));
-    setXTurn(true);
   };
 
   return (
@@ -116,13 +121,6 @@ export default function TicTacToe() {
           </button>
         ))}
       </div>
-
-      <button
-        onClick={reset}
-        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
-      >
-        Reset
-      </button>
     </div>
   );
 }

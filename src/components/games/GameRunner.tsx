@@ -1,5 +1,6 @@
 "use client";
 
+import { ReactNode } from "react";
 import GameShell from "./GameShell";
 import TicTacToe from "./TicTacToe";
 import MemoryGame from "./MemoryGame";
@@ -21,38 +22,82 @@ interface Props {
   gameId: number;
 }
 
-// Single client entry point for rendering a game by id. Games that have been
-// migrated to the leaderboard contract (accept `onGameEnd`) are wrapped in
-// GameShell so they get score submission + the post-run leaderboard panel.
-// Unmigrated games render plain — they'll get wrapped as they're updated to
-// the new contract.
+// Tiny helper so each case is one line. Renders the game inside GameShell,
+// passing onGameEnd + a runKey to remount cleanly on retry.
+function shell(
+  gameId: number,
+  render: (api: {
+    onGameEnd: (score: number, metadata?: Record<string, unknown>) => void;
+    runKey: number;
+  }) => ReactNode,
+) {
+  return <GameShell gameId={gameId}>{render}</GameShell>;
+}
+
+// Single client entry point. Every game now goes through GameShell so it
+// gets score submission + the post-run leaderboard panel for free.
 export default function GameRunner({ gameId }: Props) {
   switch (gameId) {
-    // --- Migrated to leaderboard contract ---
+    case 1:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <PlatformerGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 2:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <PoolGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 3:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <ShooterGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 4:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <ChessGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 5:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <TicTacToe key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 6:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <MemoryGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 7:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <SpaceInvadersGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 8:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <PacmanGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 9:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <TetrisGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 10:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <CrosswordGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 11:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <BattleshipGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 12:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <MinesweeperGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 13:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <SodukuGame key={runKey} onGameEnd={onGameEnd} />
+      ));
     case 14:
-      return (
-        <GameShell gameId={gameId}>
-          {({ onGameEnd, runKey }) => (
-            <FlappyBirdGame key={runKey} onGameEnd={onGameEnd} />
-          )}
-        </GameShell>
-      );
-
-    // --- Not yet migrated (no leaderboard yet) ---
-    case 1: return <PlatformerGame />;
-    case 2: return <PoolGame />;
-    case 3: return <ShooterGame />;
-    case 4: return <ChessGame />;
-    case 5: return <TicTacToe />;
-    case 6: return <MemoryGame />;
-    case 7: return <SpaceInvadersGame />;
-    case 8: return <PacmanGame />;
-    case 9: return <TetrisGame />;
-    case 10: return <CrosswordGame />;
-    case 11: return <BattleshipGame />;
-    case 12: return <MinesweeperGame />;
-    case 13: return <SodukuGame />;
-    case 15: return <CrossyRoadGame />;
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <FlappyBirdGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 15:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <CrossyRoadGame key={runKey} onGameEnd={onGameEnd} />
+      ));
     default:
       return (
         <p className="text-center font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">

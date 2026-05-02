@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useState } from "react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
 import GameOverPanel from "./GameOverPanel";
 
 interface Props {
@@ -13,21 +13,24 @@ interface Props {
   }) => ReactNode;
 }
 
-// Wraps any leaderboard-aware game. Catches the onGameEnd callback, fires the
-// score submission, and overlays the leaderboard panel. "Play again" bumps
-// runKey, which the game uses as its React key — clean remount, no per-game
-// reset code needed.
+// Delay between onGameEnd firing and the leaderboard overlay appearing. Lets
+// the game's death animation (flash, particles, final settle) play out so the
+// transition doesn't feel abrupt. The score POST fires immediately — by the
+// time the panel mounts and fetches the board, the new score is already in.
+const PANEL_REVEAL_DELAY_MS = 700;
+
 export default function GameShell({ gameId, children }: Props) {
   const [finalScore, setFinalScore] = useState<number | null>(null);
   const [finalMeta, setFinalMeta] = useState<Record<string, unknown> | undefined>();
+  const [showPanel, setShowPanel] = useState(false);
   const [runKey, setRunKey] = useState(0);
 
   const handleEnd = useCallback(
     (score: number, metadata?: Record<string, unknown>) => {
       setFinalScore(score);
       setFinalMeta(metadata);
-      // Fire-and-forget. Network failure shouldn't block the UI — the user
-      // still sees their score and the existing leaderboard.
+      // Fire-and-forget submit happens NOW so the leaderboard read on panel
+      // mount sees the fresh score.
       fetch(`/api/games/${gameId}/submitScore`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -37,16 +40,27 @@ export default function GameShell({ gameId, children }: Props) {
     [gameId],
   );
 
+  // Stage the panel reveal so the death animation plays first.
+  useEffect(() => {
+    if (finalScore === null) {
+      setShowPanel(false);
+      return;
+    }
+    const t = setTimeout(() => setShowPanel(true), PANEL_REVEAL_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [finalScore]);
+
   const restart = useCallback(() => {
     setFinalScore(null);
     setFinalMeta(undefined);
+    setShowPanel(false);
     setRunKey((k) => k + 1);
   }, []);
 
   return (
     <div className="relative">
       {children({ onGameEnd: handleEnd, runKey })}
-      {finalScore !== null && (
+      {showPanel && finalScore !== null && (
         <GameOverPanel
           gameId={gameId}
           score={finalScore}

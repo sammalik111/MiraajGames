@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 type Board = string[][];
 type Pos = { row: number; col: number };
@@ -75,19 +76,43 @@ function legalMoves(board: Board, r: number, c: number): Pos[] {
   return moves;
 }
 
-export default function ChessGame() {
+// Detect end-of-game by king capture (no king on board) or no-legal-moves for
+// the side about to move. Naive — no check detection — but mirrors the AI's
+// capture-greedy behavior, so a captured king is the actual loss condition.
+function hasKing(board: Board, side: "w" | "b"): boolean {
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const p = board[r][c];
+    if (!p) continue;
+    if (side === "w" && p === "K") return true;
+    if (side === "b" && p === "k") return true;
+  }
+  return false;
+}
+
+function hasAnyMove(board: Board, side: "w" | "b"): boolean {
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const p = board[r][c];
+    if (!p) continue;
+    if (side === "w" && !isWhite(p)) continue;
+    if (side === "b" && !isBlack(p)) continue;
+    if (legalMoves(board, r, c).length > 0) return true;
+  }
+  return false;
+}
+
+export default function ChessGame({ onGameEnd }: GameProps) {
   const [board, setBoard] = useState<Board>(initialBoard.map(r => [...r]));
   const [selected, setSelected] = useState<Pos | null>(null);
   const [turn, setTurn] = useState<"w" | "b">("w");
   const [message, setMessage] = useState("White to move.");
   const [highlights, setHighlights] = useState<Pos[]>([]);
+  const endedRef = useRef(false);
 
-  const reset = () => {
-    setBoard(initialBoard.map(r => [...r]));
-    setSelected(null);
-    setTurn("w");
-    setMessage("White to move.");
-    setHighlights([]);
+  const finish = (playerWon: boolean, msg: string) => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    setMessage(msg);
+    onGameEnd(playerWon ? 1 : 0);
   };
 
   const makeMove = (b: Board, from: Pos, to: Pos): Board => {
@@ -101,9 +126,21 @@ export default function ChessGame() {
     return next;
   };
 
+  // Detect terminal state at the start of each turn.
   useEffect(() => {
+    if (endedRef.current) return;
+    if (!hasKing(board, "b")) { finish(true, "Black king captured. You win!"); return; }
+    if (!hasKing(board, "w")) { finish(false, "Your king was captured. You lose."); return; }
+    if (turn === "w" && !hasAnyMove(board, "w")) { finish(false, "You have no legal moves. You lose."); return; }
+    if (turn === "b" && !hasAnyMove(board, "b")) { finish(true, "Black has no moves. You win!"); return; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, turn]);
+
+  useEffect(() => {
+    if (endedRef.current) return;
     if (turn !== "b") return;
     const timer = window.setTimeout(() => {
+      if (endedRef.current) return;
       const candidates: { from: Pos; to: Pos; score: number }[] = [];
       for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
         if (isBlack(board[r][c])) {
@@ -114,7 +151,7 @@ export default function ChessGame() {
           }
         }
       }
-      if (!candidates.length) { setMessage("Black has no moves. You win!"); return; }
+      if (!candidates.length) { finish(true, "Black has no moves. You win!"); return; }
       candidates.sort((a, b) => b.score - a.score);
       const best = candidates[0];
       setBoard(makeMove(board, best.from, best.to));
@@ -125,6 +162,7 @@ export default function ChessGame() {
   }, [turn, board]);
 
   const handleCellClick = (row: number, col: number) => {
+    if (endedRef.current) return;
     if (turn !== "w") return;
     const piece = board[row][col];
 
@@ -186,17 +224,9 @@ export default function ChessGame() {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-4 py-3 text-sm text-slate-300">
-          <p>Turn: {turn === "w" ? "White (You)" : "Black (AI)"}</p>
-          <p className="text-slate-400 mt-1">{message}</p>
-        </div>
-        <button
-          onClick={reset}
-          className="rounded-2xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-400"
-        >
-          New Game
-        </button>
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-4 py-3 text-sm text-slate-300">
+        <p>Turn: {turn === "w" ? "White (You)" : "Black (AI)"}</p>
+        <p className="text-slate-400 mt-1">{message}</p>
       </div>
     </div>
   );

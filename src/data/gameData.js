@@ -51,7 +51,8 @@ export const games = [
     creator: "Miraaj Games",
     theme: "strategy",
     version: 1,
-    sortedOrder: "DESC" 
+    // Score = total moves to clear all levels. Lower is better.
+    sortedOrder: "ASC"
   },
   {
     id: 7,
@@ -87,7 +88,8 @@ export const games = [
     creator: "Word Games Inc",
     theme: "puzzle",
     version: 1,
-    sortedOrder: "DESC" 
+    // Score = seconds to complete all puzzles. Lower is better.
+    sortedOrder: "ASC"
   },
   {
     id: 11,
@@ -105,7 +107,9 @@ export const games = [
     creator: "Miraaj Games",
     theme: "puzzle",
     version: 1,
-    sortedOrder: "DESC" 
+    // Score = seconds to clear board. Lower is better. Losses submit a high
+    // sentinel so completed runs always rank above failed ones.
+    sortedOrder: "ASC"
   },
   {
     id: 13,
@@ -114,7 +118,8 @@ export const games = [
     creator: "Miraaj Games",
     theme: "puzzle",
     version: 1,
-    sortedOrder: "DESC" 
+    // Score = seconds to fill the grid. Lower is better.
+    sortedOrder: "ASC"
   },
   {
     id: 14,

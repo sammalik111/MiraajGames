@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 // ── Maze ───────────────────────────────────────────────────────────────────
 const MAZE_RAW = [
@@ -125,8 +126,10 @@ function AdPlaceholder() {
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
-export default function PacmanGame() {
+export default function PacmanGame({ onGameEnd }: GameProps) {
   const mazeData = useRef(parseMaze());
+  const endedRef = useRef(false);
+  const scoreRef = useRef(0);
 
   const [levelIdx,   setLevelIdx]   = useState(0);
   const [tiles,      setTiles]      = useState<Tile[][]>(() => mazeData.current.tiles.map(r => [...r]));
@@ -151,6 +154,13 @@ export default function PacmanGame() {
   reqRef.current      = requested;
   ghostsRef.current   = ghosts;
   levelIdxRef.current = levelIdx;
+  scoreRef.current    = score;
+
+  const endGame = useCallback(() => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    onGameEnd(scoreRef.current);
+  }, [onGameEnd]);
 
   // Keys
   useEffect(() => {
@@ -171,20 +181,6 @@ export default function PacmanGame() {
     setPacDir(DIRS.None);
     setRequested(DIRS.None);
     setGhosts(buildGhosts(m.ghostStart, LEVELS[levelIdxRef.current].numGhosts));
-  }, []);
-
-  const resetFull = useCallback(() => {
-    const m = parseMaze();
-    mazeData.current = m;
-    setLevelIdx(0);
-    setTiles(m.tiles.map(r => [...r]));
-    setPac(m.pacStart);
-    setPacDir(DIRS.None);
-    setRequested(DIRS.None);
-    setGhosts(buildGhosts(m.ghostStart, LEVELS[0].numGhosts));
-    setScore(0);
-    setLives(3);
-    setGamePhase("playing");
   }, []);
 
   // Game tick — restarts whenever phase or level changes
@@ -269,7 +265,7 @@ export default function PacmanGame() {
       if (died) {
         setLives(l => {
           const nl = l - 1;
-          if (nl <= 0) setGamePhase("lost");
+          if (nl <= 0) { setGamePhase("lost"); endGame(); }
           else respawn();
           return Math.max(0, nl);
         });
@@ -286,6 +282,7 @@ export default function PacmanGame() {
         const nextIdx = levelIdxRef.current + 1;
         if (nextIdx >= LEVELS.length) {
           setGamePhase("won");
+          endGame();
         } else {
           setGamePhase("levelClear");
           setTimeout(() => {
@@ -304,7 +301,7 @@ export default function PacmanGame() {
     }, cfg.tickMs);
 
     return () => window.clearInterval(id);
-  }, [gamePhase, levelIdx, respawn]);
+  }, [gamePhase, levelIdx, respawn, endGame]);
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -413,24 +410,6 @@ export default function PacmanGame() {
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 rounded-lg">
                     <div className="text-2xl font-black text-yellow-400">Level {levelIdx + 1} Complete!</div>
                     <div className="text-slate-300 text-sm mt-1">Loading next level…</div>
-                  </div>
-                )}
-                {gamePhase === "won" && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg">
-                    <div className="text-3xl font-black text-green-400 mb-2">You Win! 🏆</div>
-                    <div className="text-slate-300 mb-4">Final Score: {score}</div>
-                    <button className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold" onClick={resetFull}>
-                      Play Again
-                    </button>
-                  </div>
-                )}
-                {gamePhase === "lost" && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg">
-                    <div className="text-3xl font-black text-red-400 mb-2">Game Over</div>
-                    <div className="text-slate-300 mb-4">Score: {score}</div>
-                    <button className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold" onClick={resetFull}>
-                      Play Again
-                    </button>
                   </div>
                 )}
               </div>

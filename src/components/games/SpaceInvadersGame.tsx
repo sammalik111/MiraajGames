@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ function buildInitialState(levelIdx: number): GameState {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export default function SpaceInvadersGame() {
+export default function SpaceInvadersGame({ onGameEnd }: GameProps) {
   const [uiLevel, setUiLevel] = useState(1);
   const [uiScore, setUiScore] = useState(0);
   const [uiLives, setUiLives] = useState(3);
@@ -133,17 +134,17 @@ export default function SpaceInvadersGame() {
   const rafRef = useRef<number>(0);
   const phaseRef = useRef<"playing" | "levelClear" | "gameOver" | "win">("playing");
   const canShootRef = useRef(true);
+  const endedRef = useRef(false);
+  // Track enemies-killed score (independent of point bonuses).
+  const killsRef = useRef(0);
 
   phaseRef.current = phase;
 
-  const startLevel = useCallback((levelIdx: number) => {
-    gsRef.current = buildInitialState(levelIdx);
-    canShootRef.current = true;
-    setUiLevel(levelIdx + 1);
-    setUiScore(0);
-    setUiLives(3);
-    setPhase("playing");
-  }, []);
+  const endGame = useCallback(() => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    onGameEnd(killsRef.current);
+  }, [onGameEnd]);
 
   const drawFrame = useCallback(() => {
     const canvas = canvasRef.current;
@@ -271,6 +272,7 @@ export default function SpaceInvadersGame() {
         ) {
           inv.alive = false;
           gs.score += 10;
+          killsRef.current += 1;
           setUiScore(gs.score);
           return false;
         }
@@ -291,6 +293,7 @@ export default function SpaceInvadersGame() {
         setUiLives(gs.lives);
         if (gs.lives <= 0) {
           setPhase("gameOver");
+          endGame();
         }
         return false;
       }
@@ -304,6 +307,7 @@ export default function SpaceInvadersGame() {
       setUiScore(gs.score);
       if (gs.level >= LEVELS.length) {
         setPhase("win");
+        endGame();
       } else {
         const msg = `LEVEL ${gs.level} CLEAR! +${bonus} pts`;
         setLevelClearMsg(msg);
@@ -330,10 +334,11 @@ export default function SpaceInvadersGame() {
       gs.lives = 0;
       setUiLives(0);
       setPhase("gameOver");
+      endGame();
     }
 
     drawFrame();
-  }, [drawFrame]);
+  }, [drawFrame, endGame]);
 
   // RAF loop
   useEffect(() => {
@@ -416,33 +421,6 @@ export default function SpaceInvadersGame() {
                 </div>
               )}
 
-              {/* Game over overlay */}
-              {phase === "gameOver" && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 rounded-lg">
-                  <div className="text-4xl font-black text-red-400 mb-2">GAME OVER</div>
-                  <div className="text-slate-300 mb-6">Score: {uiScore}</div>
-                  <button
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-lg transition"
-                    onClick={() => startLevel(0)}
-                  >
-                    Play Again
-                  </button>
-                </div>
-              )}
-
-              {/* Win overlay */}
-              {phase === "win" && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 rounded-lg">
-                  <div className="text-4xl font-black text-green-400 mb-2">YOU WIN! 🏆</div>
-                  <div className="text-slate-300 mb-6">Final Score: {uiScore}</div>
-                  <button
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-lg transition"
-                    onClick={() => startLevel(0)}
-                  >
-                    Play Again
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 

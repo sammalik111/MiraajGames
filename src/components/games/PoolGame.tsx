@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 const TABLE_W = 480;
 const TABLE_H = 288;
@@ -108,7 +109,7 @@ function BallView({ b, r }: { b: Ball; r: number }) {
   );
 }
 
-export default function PoolGame() {
+export default function PoolGame({ onGameEnd }: GameProps) {
   const [balls, setBalls] = useState<Ball[]>(startBalls);
   const [aim, setAim] = useState<{ x: number; y: number } | null>(null);
   const [power, setPower] = useState(6);
@@ -128,10 +129,32 @@ export default function PoolGame() {
   const preShotPottedRef = useRef<Set<number>>(new Set());
   const whoShotRef = useRef<"player" | "computer">("player");
   const awaitingResolutionRef = useRef(false);
+  const endedRef = useRef(false);
   ballsRef.current = balls;
   currentPlayerRef.current = currentPlayer;
   playerTypeRef.current = playerType;
   computerTypeRef.current = computerType;
+
+  // Score = balls (excluding cue) the player has pocketed via own shots OR
+  // computer fouls into player-type pockets. Simpler proxy: total non-cue
+  // balls of the player's assigned type that are potted at game end. If types
+  // never got assigned (8-ball sunk on break), fall back to win=1/lose=0.
+  const playerScore = (won: boolean): number => {
+    const pType = playerTypeRef.current;
+    if (!pType) return won ? 1 : 0;
+    const myBallType = pType === "solids" ? "solid" : "stripe";
+    const sunk = ballsRef.current.filter((b) => b.potted && b.type === myBallType).length;
+    // 8-ball legal win counts the 8 too.
+    return sunk + (won ? 1 : 0);
+  };
+
+  const finish = (won: boolean, msg: string) => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    setGameOver(true);
+    setMessage(msg);
+    onGameEnd(playerScore(won));
+  };
 
   // Physics tick
   useEffect(() => {
@@ -227,15 +250,24 @@ export default function PoolGame() {
         const allCleared = !!sType8 && ballsRef.current
           .filter((b) => b.type === myBallType)
           .every((b) => b.potted);
-        setGameOver(true);
         if (allCleared) {
-          setMessage(shooter === "player"
-            ? "You sank the 8-ball — you win! 🏆"
-            : "Computer sank the 8-ball — computer wins! 💀");
+          // Legal 8-ball pot — shooter wins.
+          const playerWon = shooter === "player";
+          finish(
+            playerWon,
+            playerWon
+              ? "You sank the 8-ball — you win! 🏆"
+              : "Computer sank the 8-ball — computer wins! 💀"
+          );
         } else {
-          setMessage(shooter === "player"
-            ? "You sank the 8-ball too early — you lose! 💀"
-            : "Computer sank the 8-ball too early — you win! 🎉");
+          // Early/illegal 8-ball pot — shooter loses.
+          const playerWon = shooter === "computer";
+          finish(
+            playerWon,
+            playerWon
+              ? "Computer sank the 8-ball too early — you win! 🎉"
+              : "You sank the 8-ball too early — you lose! 💀"
+          );
         }
         return;
       }
@@ -372,21 +404,6 @@ export default function PoolGame() {
     setMessage("Shot!");
   };
 
-  const reset = () => {
-    setBalls(startBalls());
-    setShots(0);
-    setAim(null);
-    setComputerAim(null);
-    setCurrentPlayer("player");
-    setPlayerType(null);
-    setComputerType(null);
-    setGameOver(false);
-    hasShotRef.current = false;
-    awaitingResolutionRef.current = false;
-    preShotPottedRef.current = new Set();
-    setMessage("Your turn. Click the table to aim, then Shoot.");
-  };
-
   const potted = balls.filter((b) => b.potted && b.id !== 0).length;
   const cue = balls.find((b) => b.id === 0);
 
@@ -417,12 +434,6 @@ export default function PoolGame() {
               stroke="rgba(255,255,255,0.75)" strokeWidth={1.5} strokeDasharray="4 3" />
             <circle cx={aim.x} cy={aim.y} r={4} fill="rgba(255,255,255,0.5)" />
           </svg>
-        )}
-
-        {gameOver && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-[1.1rem] bg-black/70 z-20">
-            <p className="text-center text-base font-bold text-white px-4 leading-snug">{message}</p>
-          </div>
         )}
 
         {computerAim && cue && !cue.potted && (
@@ -459,7 +470,7 @@ export default function PoolGame() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <button onClick={shoot}
           className="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:opacity-40"
           disabled={currentPlayer !== "player" || gameOver}>
@@ -470,10 +481,6 @@ export default function PoolGame() {
           <input type="range" min={2} max={14} step={0.5} value={power}
             onChange={(e) => setPower(+e.target.value)} className="w-full" />
         </div>
-        <button onClick={reset}
-          className="rounded-2xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-400">
-          Rack Again
-        </button>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-4 py-3 text-sm text-slate-300">

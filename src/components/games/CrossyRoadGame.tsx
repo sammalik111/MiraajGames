@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 // Top-down hop game with a faux-isometric tilt rendered via shadows + trim.
 // Levels scale: more lanes, faster traffic, sparser logs.
@@ -85,13 +86,26 @@ function makeSafeLane(isStart: boolean, isGoal = false): Lane {
 
 const CAR_COLORS = ["#e64545", "#3aa1e6", "#f0a93a", "#9c5ed1", "#2bc78a", "#e84393"];
 
-export default function CrossyRoadGame() {
+export default function CrossyRoadGame({ onGameEnd }: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [levelNum, setLevelNum] = useState(1);
   const [lives, setLives] = useState(3);
   const [score, setScore] = useState(0);
   const [message, setMessage] = useState<string | null>("Reach the top! Arrows / WASD to move");
   const [gameOver, setGameOver] = useState(false);
+  // Refs mirror state for the rAF loop so it doesn't tear down each render
+  // (which would reset `prev = performance.now()` and stutter every hop).
+  const levelNumRef = useRef(1);
+  const livesRef = useRef(3);
+  const scoreRef = useRef(0);
+  const messageRef = useRef<string | null>("Reach the top! Arrows / WASD to move");
+  const gameOverRef = useRef(false);
+  const endedRef = useRef(false);
+  levelNumRef.current = levelNum;
+  livesRef.current = lives;
+  scoreRef.current = score;
+  messageRef.current = message;
+  gameOverRef.current = gameOver;
 
   const levelRef = useRef<Level>(buildLevel(1));
   const playerCol = useRef(Math.floor(COLS / 2));
@@ -147,7 +161,13 @@ export default function CrossyRoadGame() {
       const left = l - 1;
       if (left <= 0) {
         setGameOver(true);
-        setMessage("Game Over — press R to restart");
+        gameOverRef.current = true;
+        setMessage("Game Over");
+        if (!endedRef.current) {
+          endedRef.current = true;
+          // Score = level reached (the player's progress number).
+          onGameEnd(levelNumRef.current);
+        }
       } else {
         setMessage(`Ouch! ${left} lives left`);
         setTimeout(() => setMessage(null), 900);
@@ -155,25 +175,11 @@ export default function CrossyRoadGame() {
       }
       return left;
     });
-  }, [resetPlayer]);
-
-  const restart = useCallback(() => {
-    setLevelNum(1);
-    setLives(3);
-    setScore(0);
-    setGameOver(false);
-    levelRef.current = buildLevel(1);
-    resetPlayer();
-    setMessage("Reach the top! Arrows / WASD to move");
-  }, [resetPlayer]);
+  }, [resetPlayer, onGameEnd]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (gameOver && (e.key === "r" || e.key === "R")) {
-        restart();
-        return;
-      }
-      if (gameOver) return;
+      if (gameOverRef.current) return;
       let dx = 0, dy = 0;
       if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") { dy = 1; facing.current = "up"; }
       else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") { dy = -1; facing.current = "down"; }
@@ -203,7 +209,7 @@ export default function CrossyRoadGame() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [gameOver, nextLevel, restart]);
+  }, [nextLevel]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -377,7 +383,7 @@ export default function CrossyRoadGame() {
       }
 
       // Player vs lane
-      if (!gameOver) {
+      if (!gameOverRef.current) {
         const lane = level.lanes[playerRow.current];
         if (lane?.type === "river") {
           if (ridingLog.current && ridingLog.current.lane === playerRow.current) {
@@ -544,14 +550,15 @@ export default function CrossyRoadGame() {
       ctx.fillStyle = "#5fb6ec";
       ctx.font = "bold 13px monospace";
       ctx.textAlign = "left";
-      ctx.fillText(`LV ${levelNum}`, 10, 19);
+      ctx.fillText(`LV ${levelNumRef.current}`, 10, 19);
       ctx.fillStyle = "#fff";
       ctx.textAlign = "center";
-      ctx.fillText(`SCORE ${score}`, W / 2, 19);
+      ctx.fillText(`SCORE ${scoreRef.current}`, W / 2, 19);
       ctx.fillStyle = "#ff8aa0";
       ctx.textAlign = "right";
-      ctx.fillText("♥".repeat(Math.max(0, lives)), W - 10, 19);
+      ctx.fillText("♥".repeat(Math.max(0, livesRef.current)), W - 10, 19);
 
+      const message = messageRef.current;
       if (message) {
         const tw = ctx.measureText(message).width;
         ctx.fillStyle = "rgba(0,0,0,0.78)";
@@ -572,7 +579,9 @@ export default function CrossyRoadGame() {
     return () => {
       if (rafId.current) cancelAnimationFrame(rafId.current);
     };
-  }, [levelNum, lives, score, message, gameOver, die]);
+    // Loop sets up once per mount; reads game state via refs to avoid the
+    // teardown stutter that resets `prev` and freezes obstacle motion.
+  }, [die]);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -588,14 +597,6 @@ export default function CrossyRoadGame() {
         tabIndex={0}
         className="border border-[color:var(--border-strong)] max-w-full h-auto outline-none rounded-sm shadow-[0_0_24px_rgba(0,0,0,0.4)]"
       />
-      <div className="flex gap-2">
-        <button
-          onClick={restart}
-          className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-2 border border-[color:var(--border-strong)] text-[color:var(--fg)] hover:ring-cyan transition"
-        >
-          Restart
-        </button>
-      </div>
       <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] text-center max-w-md">
         Arrows/WASD to hop. Cross roads, ride logs, reach the top to advance.
       </p>

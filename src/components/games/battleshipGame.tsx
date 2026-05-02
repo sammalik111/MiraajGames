@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 // -----------------------------------------------------------------------------
 // Battleship — player vs. computer
@@ -79,32 +80,31 @@ function neighbors(idx: number): number[] {
   return out;
 }
 
-export default function BattleshipGame() {
-  const [playerBoard, setPlayerBoard] = useState<Board>(() => makeRandomBoard());
-  const [cpuBoard, setCpuBoard] = useState<Board>(() => makeRandomBoard());
+export default function BattleshipGame({ onGameEnd }: GameProps) {
+  const [playerBoard] = useState<Board>(() => makeRandomBoard());
+  const [cpuBoard] = useState<Board>(() => makeRandomBoard());
   const [playerShots, setPlayerShots] = useState<Shot[]>(() => Array(100).fill(null));
   const [cpuShots, setCpuShots] = useState<Shot[]>(() => Array(100).fill(null));
   const [turn, setTurn] = useState<"player" | "cpu">("player");
   const [status, setStatus] = useState<string>("Your turn — click the enemy board to fire.");
   const [done, setDone] = useState<false | "player" | "cpu">(false);
+  const endedRef = useRef(false);
 
   // CPU hunt/target state
   const cpuTargets = useRef<number[]>([]);
   const cpuTried = useRef<Set<number>>(new Set());
 
-  const reset = () => {
-    setPlayerBoard(makeRandomBoard());
-    setCpuBoard(makeRandomBoard());
-    setPlayerShots(Array(100).fill(null));
-    setCpuShots(Array(100).fill(null));
-    setTurn("player");
-    setStatus("Your turn — click the enemy board to fire.");
-    setDone(false);
-    cpuTargets.current = [];
-    cpuTried.current = new Set();
-  };
-
   const allSunk = (b: Board) => b.ships.every((s) => s.hits.size === s.cells.length);
+  const sunkByPlayer = () => cpuBoard.ships.filter((s) => s.hits.size === s.cells.length).length;
+
+  // Score = number of enemy ships the player sank. Higher is better.
+  const finish = (winner: "player" | "cpu", msg: string) => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    setDone(winner);
+    setStatus(msg);
+    onGameEnd(sunkByPlayer());
+  };
 
   const fireAt = (target: "cpu" | "player", idx: number): Shot => {
     const board = target === "cpu" ? cpuBoard : playerBoard;
@@ -122,8 +122,7 @@ export default function BattleshipGame() {
     next[idx] = result;
     setPlayerShots(next);
     if (allSunk(cpuBoard)) {
-      setDone("player");
-      setStatus("🎉 You sank the enemy fleet!");
+      finish("player", "🎉 You sank the enemy fleet!");
       return;
     }
     if (result === "sunk") setStatus("You sank an enemy ship!");
@@ -175,8 +174,7 @@ export default function BattleshipGame() {
         setStatus("Enemy missed.");
       }
       if (allSunk(playerBoard)) {
-        setDone("cpu");
-        setStatus("💥 Your fleet was sunk. Enemy wins.");
+        finish("cpu", "💥 Your fleet was sunk. Enemy wins.");
         return;
       }
       setTurn("player");
@@ -245,13 +243,6 @@ export default function BattleshipGame() {
           </div>
         </div>
       </div>
-
-      <button
-        onClick={reset}
-        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
-      >
-        New Game
-      </button>
     </div>
   );
 }

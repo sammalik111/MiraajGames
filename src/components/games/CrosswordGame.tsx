@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import type { GameProps } from "./types";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -126,9 +127,8 @@ function AdPlaceholder() {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
-export default function CrosswordGame() {
+export default function CrosswordGame({ onGameEnd }: GameProps) {
   const [puzzleIndex, setPuzzleIndex] = useState(0);
-  const [allDone, setAllDone] = useState(false);
   const puzzle = PUZZLES[puzzleIndex];
 
   const [userInput, setUserInput] = useState<Map<string, string>>(new Map());
@@ -136,9 +136,22 @@ export default function CrosswordGame() {
   const [solved, setSolved] = useState(false);
   const [direction, setDirection] = useState<"across" | "down">("across");
   const [cursor, setCursor] = useState<{ r: number; c: number } | null>(null);
+  const [elapsed, setElapsed] = useState(0);
 
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const answerMap = buildAnswerMap(puzzle);
+  // Timer starts on mount; score = total seconds across all puzzles.
+  const startRef = useRef<number>(Date.now());
+  const endedRef = useRef(false);
+  const allDoneRef = useRef(false);
+
+  useEffect(() => {
+    if (allDoneRef.current) return;
+    const id = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, []);
 
   const resetForPuzzle = useCallback(() => {
     setUserInput(new Map());
@@ -242,8 +255,17 @@ export default function CrosswordGame() {
   };
 
   const handleNext = () => {
-    if (puzzleIndex < PUZZLES.length - 1) setPuzzleIndex((i) => i + 1);
-    else setAllDone(true);
+    if (puzzleIndex < PUZZLES.length - 1) {
+      setPuzzleIndex((i) => i + 1);
+    } else {
+      // Final puzzle done — fire onGameEnd with total seconds.
+      allDoneRef.current = true;
+      if (!endedRef.current) {
+        endedRef.current = true;
+        const seconds = Math.max(1, Math.floor((Date.now() - startRef.current) / 1000));
+        onGameEnd(seconds);
+      }
+    }
   };
 
   const getCellBg = (r: number, c: number): string => {
@@ -258,24 +280,6 @@ export default function CrosswordGame() {
 
   const CELL = 42;
 
-  if (allDone) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-3xl font-bold text-white mb-2">All Puzzles Complete!</h2>
-          <p className="text-slate-400 mb-6">You solved all 3 crossword puzzles!</p>
-          <button
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold"
-            onClick={() => { setPuzzleIndex(0); setAllDone(false); }}
-          >
-            Play Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-900 text-white py-6 px-4">
       <div className="max-w-5xl mx-auto">
@@ -287,10 +291,16 @@ export default function CrosswordGame() {
               Theme: <span className="text-yellow-400 font-semibold">{puzzle.theme}</span>
             </p>
           </div>
-          <div className="bg-slate-700 rounded-xl px-5 py-2 text-center">
-            <div className="text-xs text-slate-400 uppercase tracking-widest">Puzzle</div>
-            <div className="text-2xl font-bold text-yellow-400">
-              {puzzleIndex + 1} / {PUZZLES.length}
+          <div className="flex gap-3">
+            <div className="bg-slate-700 rounded-xl px-5 py-2 text-center">
+              <div className="text-xs text-slate-400 uppercase tracking-widest">Time</div>
+              <div className="text-2xl font-bold text-cyan-300">{elapsed}s</div>
+            </div>
+            <div className="bg-slate-700 rounded-xl px-5 py-2 text-center">
+              <div className="text-xs text-slate-400 uppercase tracking-widest">Puzzle</div>
+              <div className="text-2xl font-bold text-yellow-400">
+                {puzzleIndex + 1} / {PUZZLES.length}
+              </div>
             </div>
           </div>
         </div>

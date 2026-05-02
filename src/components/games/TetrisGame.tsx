@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 const COLS = 10;
 const ROWS = 20;
@@ -71,7 +72,7 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
 
 const COLOR_BY_ID: Record<number, string> = Object.fromEntries(SHAPES.map((s) => [s.id, s.color]));
 
-export default function TetrisGame() {
+export default function TetrisGame({ onGameEnd }: GameProps) {
   const [board, setBoard] = useState<Cell[][]>(emptyBoard);
   const [piece, setPiece] = useState<Piece>(spawnPiece);
   const [score, setScore] = useState(0);
@@ -81,18 +82,11 @@ export default function TetrisGame() {
   const [paused, setPaused] = useState(false);
   const boardRef = useRef(board);
   const pieceRef = useRef(piece);
+  const scoreRef = useRef(0);
+  const endedRef = useRef(false);
   boardRef.current = board;
   pieceRef.current = piece;
-
-  const reset = () => {
-    setBoard(emptyBoard());
-    setPiece(spawnPiece());
-    setScore(0);
-    setLines(0);
-    setLevel(1);
-    setGameOver(false);
-    setPaused(false);
-  };
+  scoreRef.current = score;
 
   const tryMove = useCallback((dRow: number, dCol: number) => {
     const p = pieceRef.current;
@@ -128,10 +122,14 @@ export default function TetrisGame() {
     const next = spawnPiece();
     if (collides(cleared, next)) {
       setGameOver(true);
+      if (!endedRef.current) {
+        endedRef.current = true;
+        onGameEnd(scoreRef.current);
+      }
     } else {
       setPiece(next);
     }
-  }, [level]);
+  }, [level, onGameEnd]);
 
   const hardDrop = useCallback(() => {
     let d = 0;
@@ -209,13 +207,6 @@ export default function TetrisGame() {
           >
             {paused ? "Resume" : "Pause"}
           </button>
-          <button
-            onClick={reset}
-            className="rounded-2xl bg-violet-500 px-4 py-2 font-semibold text-white hover:bg-violet-400"
-          >
-            New Game
-          </button>
-          {gameOver && <p className="rounded-2xl border border-rose-700 bg-rose-950/60 px-4 py-2 text-rose-300">Game Over</p>}
         </div>
       </div>
     </div>

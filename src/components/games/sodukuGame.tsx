@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { GameProps } from "./types";
 
 // -----------------------------------------------------------------------------
 // Sudoku — randomized puzzle
@@ -69,18 +70,24 @@ function makePuzzle(): { puzzle: Grid; solution: Grid } {
   return { puzzle, solution };
 }
 
-export default function SudokuGame() {
+export default function SudokuGame({ onGameEnd }: GameProps) {
   const [game, setGame] = useState(() => {
     const { puzzle, solution } = makePuzzle();
     return { puzzle, solution, values: cloneGrid(puzzle), selected: -1 };
   });
   const [won, setWon] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  // Timer starts when component mounts; score = seconds at solve.
+  const startRef = useRef<number>(Date.now());
+  const endedRef = useRef(false);
 
-  const reset = () => {
-    const { puzzle, solution } = makePuzzle();
-    setGame({ puzzle, solution, values: cloneGrid(puzzle), selected: -1 });
-    setWon(false);
-  };
+  useEffect(() => {
+    if (won) return;
+    const id = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [won]);
 
   const conflicts = useMemo(() => {
     const bad = new Set<number>();
@@ -115,7 +122,14 @@ export default function SudokuGame() {
     next[idx] = v;
     const newGame = { ...game, values: next };
     setGame(newGame);
-    if (next.every((x, i) => x === game.solution[i])) setWon(true);
+    if (next.every((x, i) => x === game.solution[i])) {
+      setWon(true);
+      if (!endedRef.current) {
+        endedRef.current = true;
+        const seconds = Math.max(1, Math.floor((Date.now() - startRef.current) / 1000));
+        onGameEnd(seconds);
+      }
+    }
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -128,7 +142,7 @@ export default function SudokuGame() {
     <div className="flex flex-col items-center gap-5" tabIndex={0} onKeyDown={handleKey}>
       <h1 className="text-3xl font-bold text-black dark:text-white">Sudoku</h1>
       <div className="text-lg font-semibold h-7">
-        {won ? <span className="text-green-600">🎉 Solved!</span> : <span className="text-zinc-600 dark:text-zinc-300">Click a cell then type 1–9.</span>}
+        <span className="text-zinc-600 dark:text-zinc-300">Time: {elapsed}s · Click a cell then type 1–9.</span>
       </div>
 
       <div className="grid grid-cols-9 border-2 border-black dark:border-white">
@@ -173,13 +187,6 @@ export default function SudokuGame() {
           Erase
         </button>
       </div>
-
-      <button
-        onClick={reset}
-        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
-      >
-        New Puzzle
-      </button>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import type { GameProps } from "./types";
 
 // ── Level Config ───────────────────────────────────────────────────────────
 
@@ -69,15 +70,17 @@ function AdPlaceholder() {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
-export default function MemoryGame() {
+export default function MemoryGame({ onGameEnd }: GameProps) {
   const [currentLevel, setCurrentLevel] = useState(0); // 0-based index
   const [cards, setCards] = useState<Card[]>([]);
   const [flipped, setFlipped] = useState<number[]>([]);
   const [locked, setLocked] = useState(false);
+  // Total moves across all levels — this is the score we report.
   const [moves, setMoves] = useState(0);
-  const [bestMoves, setBestMoves] = useState<(number | null)[]>([null, null, null, null]);
   const [levelOverlay, setLevelOverlay] = useState<string | null>(null);
-  const [gameWon, setGameWon] = useState(false);
+  // Guard so onGameEnd fires exactly once per run.
+  const endedRef = useRef(false);
+  const movesRef = useRef(0);
 
   const levelConfig = LEVELS[currentLevel];
 
@@ -85,7 +88,6 @@ export default function MemoryGame() {
     setCards(buildDeck(LEVELS[lvlIdx]));
     setFlipped([]);
     setLocked(false);
-    setMoves(0);
   }, []);
 
   useEffect(() => {
@@ -96,17 +98,12 @@ export default function MemoryGame() {
   useEffect(() => {
     if (cards.length === 0) return;
     if (cards.every((c) => c.matched)) {
-      // Record best moves
-      setBestMoves((prev) => {
-        const next = [...prev];
-        if (next[currentLevel] === null || moves < (next[currentLevel] as number)) {
-          next[currentLevel] = moves;
-        }
-        return next;
-      });
-
       if (currentLevel === LEVELS.length - 1) {
-        setGameWon(true);
+        // Final level cleared — fire onGameEnd with total move count.
+        if (!endedRef.current) {
+          endedRef.current = true;
+          onGameEnd(movesRef.current);
+        }
       } else {
         const msg = `Level ${currentLevel + 1} complete! 🎉`;
         setLevelOverlay(msg);
@@ -130,7 +127,8 @@ export default function MemoryGame() {
     setFlipped(newFlipped);
 
     if (newFlipped.length === 2) {
-      setMoves((m) => m + 1);
+      movesRef.current += 1;
+      setMoves(movesRef.current);
       const [a, b] = newFlipped.map((fid) => cards.find((c) => c.id === fid)!);
       if (a.emoji === b.emoji) {
         // Match!
@@ -153,31 +151,6 @@ export default function MemoryGame() {
   };
 
   const CARD_SIZE = 84;
-
-  if (gameWon) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-3">🏆</div>
-          <h2 className="text-3xl font-bold text-white mb-2">You beat all 4 levels! 🏆</h2>
-          <p className="text-slate-400 mb-2">Total moves on final level: {moves}</p>
-          <div className="mb-6 text-sm text-slate-500">
-            {LEVELS.map((_, i) => (
-              <div key={i}>
-                Level {i + 1} best: {bestMoves[i] ?? "—"} moves
-              </div>
-            ))}
-          </div>
-          <button
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold"
-            onClick={() => { setCurrentLevel(0); setGameWon(false); setBestMoves([null, null, null, null]); }}
-          >
-            Play Again
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-white py-6 px-4">
@@ -211,12 +184,6 @@ export default function MemoryGame() {
               <div className="bg-slate-800 rounded-lg px-4 py-3 text-center flex-1">
                 <div className="text-xs text-slate-400 uppercase tracking-widest mb-1">Moves</div>
                 <div className="text-2xl font-bold text-white">{moves}</div>
-              </div>
-              <div className="bg-slate-800 rounded-lg px-4 py-3 text-center flex-1">
-                <div className="text-xs text-slate-400 uppercase tracking-widest mb-1">Best</div>
-                <div className="text-2xl font-bold text-yellow-400">
-                  {bestMoves[currentLevel] ?? "—"}
-                </div>
               </div>
               <div className="bg-slate-800 rounded-lg px-4 py-3 text-center flex-1">
                 <div className="text-xs text-slate-400 uppercase tracking-widest mb-1">Pairs Left</div>
@@ -270,15 +237,6 @@ export default function MemoryGame() {
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="mt-4">
-              <button
-                className="px-5 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold transition"
-                onClick={() => initLevel(currentLevel)}
-              >
-                Restart Level
-              </button>
             </div>
 
             {/* Ad placeholder below controls */}
