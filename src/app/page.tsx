@@ -14,6 +14,10 @@ const usercount = await db.select()
 });
 
 export default function Home() {
+
+  const singlePlayerGames = games.filter(u => u.grouping == "singleplayer");
+  const multiPlayerGames = games.filter(u => u.grouping == "multiplayer");
+
   return (
     <div className="min-h-screen text-[color:var(--fg)]">
       <Navbar />
@@ -141,9 +145,13 @@ export default function Home() {
               {games.length} available
             </span>
           </div>
-
+              
+          <div className="font-mono text-xs uppercase tracking-[0.3em] text-[color:var(--neon-cyan)]">
+            ▸ Single Player
+          </div>
+          <br></br>
           <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {games.map((game) => (
+            {singlePlayerGames.map((game) => (
               <GameCard
                 key={game.id}
                 id={game.id}
@@ -151,9 +159,29 @@ export default function Home() {
                 description={game.description}
                 creator={game.creator}
                 theme={game.theme}
+                grouping={game.grouping}
               />
             ))}
           </div>
+          <br></br>
+          <div className="font-mono text-xs uppercase tracking-[0.3em] text-[color:var(--neon-cyan)]">
+            ▸ Multi Player
+          </div>  
+          <br></br>
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            {multiPlayerGames.map((game) => (
+              <GameCard
+                key={game.id}
+                id={game.id}
+                title={game.title}
+                description={game.description}
+                creator={game.creator}
+                theme={game.theme}
+                grouping={game.grouping}
+              />
+            ))}
+          </div>
+
         </section>
       </main>
     </div>

@@ -6,6 +6,7 @@ export const games = [
     creator: "Miraaj Studios",
     theme: "platformer",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -15,6 +16,7 @@ export const games = [
     creator: "Pocket Arcade",
     theme: "pool",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -24,6 +26,7 @@ export const games = [
     creator: "Arcade Lab",
     theme: "shooter",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -33,6 +36,7 @@ export const games = [
     creator: "Royal Code",
     theme: "chess",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC",
   },
   {
@@ -42,6 +46,7 @@ export const games = [
     creator: "Miraaj Games",
     theme: "puzzle",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -51,6 +56,7 @@ export const games = [
     creator: "Miraaj Games",
     theme: "strategy",
     version: 1,
+    grouping: "singleplayer",
     // Score = total moves to clear all levels. Lower is better.
     sortedOrder: "ASC"
   },
@@ -61,6 +67,7 @@ export const games = [
     creator: "Retro Arcade",
     theme: "shooter",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -70,6 +77,7 @@ export const games = [
     creator: "Namco Classics",
     theme: "arcade",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -79,6 +87,7 @@ export const games = [
     creator: "Puzzle Masters",
     theme: "puzzle",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -88,6 +97,7 @@ export const games = [
     creator: "Word Games Inc",
     theme: "puzzle",
     version: 1,
+    grouping: "singleplayer",
     // Score = seconds to complete all puzzles. Lower is better.
     sortedOrder: "ASC"
   },
@@ -98,6 +108,7 @@ export const games = [
     creator: "Miraaj Games",
     theme: "strategy",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -107,6 +118,7 @@ export const games = [
     creator: "Miraaj Games",
     theme: "puzzle",
     version: 1,
+    grouping: "singleplayer",
     // Score = seconds to clear board. Lower is better. Losses submit a high
     // sentinel so completed runs always rank above failed ones.
     sortedOrder: "ASC"
@@ -118,6 +130,7 @@ export const games = [
     creator: "Miraaj Games",
     theme: "puzzle",
     version: 1,
+    grouping: "singleplayer",
     // Score = seconds to fill the grid. Lower is better.
     sortedOrder: "ASC"
   },
@@ -128,6 +141,7 @@ export const games = [
     creator: "Miraaj Games",
     theme: "arcade",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
   {
@@ -137,6 +151,18 @@ export const games = [
     creator: "Miraaj Games",
     theme: "arcade",
     version: 1,
+    grouping: "singleplayer",
     sortedOrder: "DESC" 
   },
+  {
+    id: 16,
+    title: "Tic Tac Toe",
+    description: "Classic grid-based strategy with another player.",
+    creator: "Miraaj Games",
+    theme: "puzzle",
+    version: 1,
+    grouping: "multiplayer",
+    sortedOrder: "DESC" 
+  },
+
 ];

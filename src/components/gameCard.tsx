@@ -12,6 +12,7 @@ interface GameCardProps {
   description: string;
   creator: string;
   theme: string;
+  grouping?: string;
 }
 
 // Map each theme tag to a neon accent color var.
@@ -31,6 +32,7 @@ export default function GameCard({
   description,
   creator,
   theme,
+  grouping
 }: GameCardProps) {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
@@ -53,6 +55,7 @@ export default function GameCard({
   }, [sessionFavorites]);
 
   const isFavorited = favoriteIds.includes(id);
+  const routePath = grouping == "singleplayer" ? `/games/${id}` : `/games/${id}/lobby`;
   const accent = themeAccent[theme] ?? "var(--neon-cyan)";
 
   const handleFavorite = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -96,7 +99,7 @@ export default function GameCard({
   };
 
   return (
-    <Link href={`/games/${id}`} className="block group">
+    <Link href={routePath} className="block group">
       <HudPanel innerClassName="p-0 flex flex-col">
         {/* Header strip — accent-tinted band with cabinet id */}
         <div
@@ -141,7 +144,7 @@ export default function GameCard({
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                router.push(`/games/${id}`);
+                router.push(routePath);
               }}
               className="flex-1 font-mono text-xs uppercase tracking-[0.2em] px-4 py-2.5 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
             >

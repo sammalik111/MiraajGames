@@ -345,6 +345,77 @@ export const gameRuns = pgTable(
 );
 
 
+// Metadata for an actual multiplayer game room.
+// Table name is snake_case to match every other table in this file. Column
+// `game_id` is `integer` to match game_scores / best_scores_for_game / game_runs
+// — game ids come from gameData.js as numbers (1..16), not strings.
+export const gameSessions = pgTable("game_sessions", {
+  id: text("id").primaryKey(),
+  gameId: integer("game_id").notNull(),
+  public: boolean("public").notNull().default(false),
+  isFull: boolean("is_full").notNull().default(false),
+  // How many participants the session is built for. Default 2 keeps the
+  // existing 1v1 behavior; set higher per game (4 for a co-op, etc.) to
+  // unlock N-player rooms. The PUT/join handler uses this to decide when
+  // to flip is_full.
+  maxPlayers: integer("max_players").notNull().default(2),
+  // Nullable + set-null on user delete — the room outlives the creator.
+  createdBy: text("created_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// The moves made in a game room.
+// FK column is `game_session_id` — same target, name matches the referenced
+// table instead of the older "gameRoom" naming.
+export const gameMoves = pgTable("game_moves", {
+  id: text("id").primaryKey(),
+  gameSessionId: text("game_session_id")
+    .notNull()
+    .references(() => gameSessions.id, { onDelete: "cascade" }),
+  // Nullable + set-null on user delete — past moves survive the
+  // sender's account deletion as anonymized history.
+  senderId: text("sender_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// Participants in a multiplayer session.
+// One row per (session, user) — same shape as conversation_participants —
+// so a session can hold any number of players up to gameSessions.maxPlayers.
+// Composite PK enforces "user is in this session at most once".
+export const gameParticipants = pgTable(
+  "game_participants",
+  {
+    gameSessionId: text("game_session_id")
+      .notNull()
+      .references(() => gameSessions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Optional turn-order slot — first joiner = 0, second = 1, etc. Lets
+    // games that care about seat order (Chess, TicTacToe) read it directly
+    // instead of inferring from joinedAt.
+    seat: integer("seat").notNull().default(0),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.gameSessionId, t.userId] }),
+    // For "show me all sessions I'm in" — single-column index on user_id.
+    index("game_participants_user_idx").on(t.userId),
+  ],
+);
+
+
 
 // -----------------------------------------------------------------------------
 // Inferred TS types
@@ -363,3 +434,9 @@ export type BestScoreForGame = typeof bestScoresForGame.$inferSelect;
 export type NewBestScoreForGame = typeof bestScoresForGame.$inferInsert;
 export type GameRun = typeof gameRuns.$inferSelect;
 export type NewGameRun = typeof gameRuns.$inferInsert;
+export type GameSession = typeof gameSessions.$inferSelect;
+export type NewGameSession = typeof gameSessions.$inferInsert;
+export type GameMove = typeof gameMoves.$inferSelect;
+export type NewGameMove = typeof gameMoves.$inferInsert;
+export type GameParticipant = typeof gameParticipants.$inferSelect;
+export type NewGameParticipant = typeof gameParticipants.$inferInsert;

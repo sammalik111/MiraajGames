@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1777166090467,
-      "tag": "0000_mysterious_risque",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1777357479833,
-      "tag": "0001_purple_vanisher",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1777583194731,
-      "tag": "0002_handy_dormammu",
+      "when": 1777777332406,
+      "tag": "0000_late_typhoid_mary",
       "breakpoints": true
     }
   ]
