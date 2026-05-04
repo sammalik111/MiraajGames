@@ -162,7 +162,27 @@ export const games = [
     theme: "puzzle",
     version: 1,
     grouping: "multiplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC"
+  },
+  {
+    id: 17,
+    title: "Battleship",
+    description: "Hunt the enemy fleet across two grids — placement is secret, shots are everything.",
+    creator: "Miraaj Games",
+    theme: "strategy",
+    version: 1,
+    grouping: "multiplayer",
+    sortedOrder: "DESC"
+  },
+  {
+    id: 18,
+    title: "8 Ball Pool",
+    description: "Take turns calling shots in a pared-down two-player rack.",
+    creator: "Miraaj Games",
+    theme: "pool",
+    version: 1,
+    grouping: "multiplayer",
+    sortedOrder: "DESC"
   },
 
 ];

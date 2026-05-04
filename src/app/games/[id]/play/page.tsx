@@ -19,6 +19,8 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { games } from "@/data/gameData";
 import TicTacToeMultiplayer from "@/components/games/multiplayer/TicTacToeMultiplayer";
+import BattleshipMultiplayer from "@/components/games/multiplayer/BattleshipMultiplayer";
+import PoolMultiplayer from "@/components/games/multiplayer/PoolMultiplayer";
 
 interface RoomSnapshot {
   room: { id: string; gameId: number; isFull: boolean; maxPlayers: number };
@@ -92,10 +94,27 @@ export default function PlayPage() {
             gameId={gameId}
             sessionId={sessionId}
             mySeat={me.seat}
+            participants={snapshot.participants}
           />
         );
-      // case 17: Battleship MP — TODO
-      // case 18: 8-Ball Pool MP — TODO
+      case 17: // Battleship MP
+        return (
+          <BattleshipMultiplayer
+            gameId={gameId}
+            sessionId={sessionId}
+            mySeat={me.seat}
+            participants={snapshot.participants}
+          />
+        );
+      case 18: // 8 Ball Pool MP (lite)
+        return (
+          <PoolMultiplayer
+            gameId={gameId}
+            sessionId={sessionId}
+            mySeat={me.seat}
+            participants={snapshot.participants}
+          />
+        );
       default:
         return notFound(`No multiplayer client wired up for game #${gameId} yet.`);
     }

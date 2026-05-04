@@ -46,6 +46,48 @@ export default function GameLobbyPage() {
   const [joinIdInput, setJoinIdInput] = useState("");
   const [isPublic, setIsPublic] = useState(false);
 
+  // ---- Synced start polling --------------------------------------------
+  // Once we're in a room, poll the moves endpoint for a `{type:"game-start"}`
+  // signal. Whoever clicks Start posts that signal; both clients see it
+  // and navigate together. No DB changes — the moves table doubles as a
+  // signal channel.
+  useEffect(() => {
+    if (!snapshot) return;
+    const sessionId = snapshot.room.id;
+    let cancelled = false;
+    let lastCount = -1;
+    const tick = async () => {
+      try {
+        const res = await fetch(
+          `/api/games/${encodeURIComponent(gameID)}/multiplayer/moves?sessionId=${encodeURIComponent(sessionId)}&lastCount=${lastCount}`,
+          { cache: "no-store" },
+        );
+        if (cancelled || !res.ok) return;
+        const data = (await res.json()) as
+          | { count: number; unchanged: true }
+          | { count: number; moves: Array<{ payload: Record<string, unknown> }> };
+        lastCount = data.count;
+        if ("moves" in data) {
+          const started = data.moves.some((m) => m.payload?.type === "game-start");
+          if (started) {
+            cancelled = true;
+            router.push(
+              `/games/${encodeURIComponent(gameID)}/play?session=${encodeURIComponent(sessionId)}`,
+            );
+          }
+        }
+      } catch {
+        /* swallow — try again next tick */
+      }
+    };
+    tick();
+    const t = setInterval(tick, 800);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [snapshot, gameID, router]);
+
   // ---- Auto-repopulate on mount ----------------------------------------
   // If the user is already a participant in a room for this game (e.g. they
   // refreshed the page or logged back in), GET returns the snapshot and we
@@ -157,11 +199,29 @@ export default function GameLobbyPage() {
     setJoinIdInput("");
   };
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     if (!snapshot) return;
     if (!snapshot.room.isFull) {
       setError("Waiting for more players before starting.");
       return;
+    }
+    // Post a game-start signal so the OTHER client's poll picks it up
+    // and auto-navigates too. Then navigate ourselves.
+    try {
+      await fetch(
+        `/api/games/${encodeURIComponent(gameID)}/multiplayer/moves`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: snapshot.room.id,
+            payload: { type: "game-start" },
+          }),
+        },
+      );
+    } catch {
+      /* even if the signal POST fails, take ourselves into the game.
+         The other client can re-click Start themselves. */
     }
     router.push(
       `/games/${encodeURIComponent(gameID)}/play?session=${encodeURIComponent(snapshot.room.id)}`,

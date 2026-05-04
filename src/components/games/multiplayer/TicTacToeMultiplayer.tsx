@@ -2,52 +2,83 @@
 
 // TicTacToe — multiplayer client.
 //
-// Architecture:
-//   - The full board state lives ONLY on the client. The server stores
-//     moves (one cell-index per row) as opaque jsonb.
-//   - On mount + every POLL_MS, we GET moves since our last-seen number
-//     and replay them into local state.
-//   - A click validates locally (own turn? cell empty?), POSTs the move.
+// State model:
+//   - The full board lives ONLY on the client. Server stores moves
+//     (one cell-index per row) as opaque jsonb.
+//   - Polling uses the server's count-based caching: we send `?lastCount=N`
+//     and the server returns `{count, unchanged: true}` when nothing
+//     changed, skipping the moves SELECT entirely.
+//   - Click validates locally (own turn? cell empty?), POSTs the move
+//     with no `moveNumber` — server picks the next slot.
 //   - Win / draw detection runs locally after each replay.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { TicTacToeMove } from "@/db/schema";
+import { useRematchVote } from "./useRematchVote";
+import MultiplayerEndOverlay from "./MultiplayerEndOverlay";
 
 type Cell = "X" | "O" | null;
-type Board = Cell[]; // length 9
+type Board = Cell[];
+
+interface Participant {
+  userId: string;
+  name: string | null;
+  seat: number;
+}
 
 interface Props {
   gameId: number;
   sessionId: string;
-  mySeat: number; // 0 = X, 1 = O (round-robin by move_number % maxPlayers)
+  mySeat: number;
+  participants: Participant[];
 }
+
+type MovePayload =
+  | TicTacToeMove
+  | { type: "rematch-vote" }
+  | { type: "game-start" };
 
 interface MoveRow {
   moveNumber: number;
   senderId: string | null;
-  payload: TicTacToeMove;
+  payload: MovePayload;
   createdAt: string;
 }
 
-const POLL_MS = 1500;
+const POLL_MS = 500;
+const OVERLAY_DELAY_MS = 700;
 
 const WIN_LINES: Array<[number, number, number]> = [
-  [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-  [0, 3, 6], [1, 4, 7], [2, 5, 8], // cols
-  [0, 4, 8], [2, 4, 6],            // diagonals
+  [0, 1, 2], [3, 4, 5], [6, 7, 8],
+  [0, 3, 6], [1, 4, 7], [2, 5, 8],
+  [0, 4, 8], [2, 4, 6],
 ];
 
-// Replay a flat move list into a 9-cell board. Move 0 = X, 1 = O, 2 = X...
+function isGameplay(p: MovePayload): p is TicTacToeMove {
+  return (
+    typeof p === "object" &&
+    !("type" in p) &&
+    typeof (p as { cell?: unknown }).cell === "number"
+  );
+}
+
 function replay(moves: MoveRow[]): Board {
   const board: Board = Array(9).fill(null);
+  let cellMoveIndex = 0;
   for (const m of moves) {
-    const mark = m.moveNumber % 2 === 0 ? "X" : "O";
-    if (typeof m.payload?.cell === "number") board[m.payload.cell] = mark;
+    if (!isGameplay(m.payload)) continue;
+    const mark = cellMoveIndex % 2 === 0 ? "X" : "O";
+    board[m.payload.cell] = mark;
+    cellMoveIndex += 1;
   }
   return board;
 }
 
-function detectWinner(board: Board): { winner: Cell; line: [number, number, number] | null } {
+function detectWinner(board: Board): {
+  winner: Cell;
+  line: [number, number, number] | null;
+} {
   for (const line of WIN_LINES) {
     const [a, b, c] = line;
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
@@ -57,25 +88,36 @@ function detectWinner(board: Board): { winner: Cell; line: [number, number, numb
   return { winner: null, line: null };
 }
 
-export default function TicTacToeMultiplayer({ gameId, sessionId, mySeat }: Props) {
+export default function TicTacToeMultiplayer({
+  gameId,
+  sessionId,
+  mySeat,
+  participants,
+}: Props) {
+  const router = useRouter();
   const [moves, setMoves] = useState<MoveRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // Last move number we've processed, used as the cursor for incremental polling.
-  const lastSeenRef = useRef<number>(-1);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+
+  // Cache cursor — last move count we know about. Server returns
+  // unchanged: true when this matches its current count.
+  const lastCountRef = useRef(-1);
 
   // ---- Polling ---------------------------------------------------------
   const fetchMoves = useCallback(async () => {
     try {
       const res = await fetch(
-        `/api/games/${gameId}/multiplayer/moves?sessionId=${encodeURIComponent(sessionId)}&since=${lastSeenRef.current}`,
+        `/api/games/${gameId}/multiplayer/moves?sessionId=${encodeURIComponent(sessionId)}&lastCount=${lastCountRef.current}`,
         { cache: "no-store" },
       );
       if (!res.ok) return;
-      const data = (await res.json()) as { moves: MoveRow[] };
-      if (data.moves.length === 0) return;
-      setMoves((prev) => [...prev, ...data.moves]);
-      lastSeenRef.current = data.moves[data.moves.length - 1].moveNumber;
+      const data = (await res.json()) as
+        | { count: number; unchanged: true }
+        | { count: number; moves: MoveRow[] };
+      lastCountRef.current = data.count;
+      if ("moves" in data) setMoves(data.moves);
     } catch {
       /* network blip — try again next tick */
     }
@@ -88,17 +130,64 @@ export default function TicTacToeMultiplayer({ gameId, sessionId, mySeat }: Prop
   }, [fetchMoves]);
 
   // ---- Derived state ---------------------------------------------------
+  const cellMoves = useMemo(
+    () => moves.filter((m) => isGameplay(m.payload)),
+    [moves],
+  );
   const board = useMemo(() => replay(moves), [moves]);
-  const { winner, line: winningLine } = useMemo(() => detectWinner(board), [board]);
-  const isDraw = !winner && moves.length === 9;
+  const { winner, line: winningLine } = useMemo(
+    () => detectWinner(board),
+    [board],
+  );
+  const isDraw = !winner && cellMoves.length === 9;
   const gameOver = !!winner || isDraw;
 
-  // 0 = X plays moves 0,2,4,...; 1 = O plays moves 1,3,5,...
-  const turnSeat = moves.length % 2;
+  const turnSeat = cellMoves.length % 2;
   const myMark: "X" | "O" = mySeat === 0 ? "X" : "O";
   const myTurn = !gameOver && turnSeat === mySeat;
 
-  // ---- Submit a move ---------------------------------------------------
+  const opponent = participants.find((p) => p.seat !== mySeat);
+  const me = participants.find((p) => p.seat === mySeat);
+  const opponentName = opponent?.name ?? "Opponent";
+  const myUserId = me?.userId ?? null;
+  const opponentUserId = opponent?.userId ?? null;
+
+  // ---- Overlay reveal --------------------------------------------------
+  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+    if (gameOver) {
+      overlayTimerRef.current = setTimeout(
+        () => setShowOverlay(true),
+        OVERLAY_DELAY_MS,
+      );
+    } else {
+      setShowOverlay(false);
+    }
+    return () => {
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+    };
+  }, [gameOver]);
+
+  // ---- Rematch hook ----------------------------------------------------
+  const handleResetLocal = useCallback(() => {
+    setMoves([]);
+    lastCountRef.current = -1;
+    setShowOverlay(false);
+  }, []);
+
+  const rematch = useRematchVote({
+    gameId,
+    sessionId,
+    mySeat,
+    myUserId,
+    opponentUserId,
+    moves,
+    fetchMoves,
+    onReset: handleResetLocal,
+  });
+
+  // ---- Click cell ------------------------------------------------------
   const playCell = async (cell: number) => {
     if (gameOver) return;
     if (!myTurn) {
@@ -117,38 +206,52 @@ export default function TicTacToeMultiplayer({ gameId, sessionId, mySeat }: Prop
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId,
-          moveNumber: moves.length,
           payload: { cell } satisfies TicTacToeMove,
         }),
       });
       if (!res.ok) {
         const raw = await res.text();
         let msg = raw;
-        try {
-          msg = JSON.parse(raw)?.error ?? raw;
-        } catch {}
+        try { msg = JSON.parse(raw)?.error ?? raw; } catch {}
         setError(`Move rejected: ${msg.slice(0, 200)}`);
-        // Re-sync to whatever the server thinks. Likely we raced another player.
         await fetchMoves();
         return;
       }
-      // Optimistically pull our own move in.
       await fetchMoves();
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ---- Render ----------------------------------------------------------
+  // ---- Leave room ------------------------------------------------------
+  const handleLeave = async () => {
+    if (leaving) return;
+    setLeaving(true);
+    try {
+      await fetch(`/api/games/${gameId}/multiplayer/gameRoom`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomID: sessionId }),
+      });
+    } catch {}
+    router.push(`/games/${gameId}/lobby`);
+  };
+
   const status = (() => {
     if (winner) return winner === myMark ? "You win." : "You lose.";
     if (isDraw) return "Draw.";
     if (myTurn) return "Your turn.";
-    return "Waiting for opponent...";
+    return `${opponentName}'s turn...`;
   })();
 
+  const outcome = winner
+    ? winner === myMark
+      ? ("win" as const)
+      : ("loss" as const)
+    : ("draw" as const);
+
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="relative flex flex-col items-center gap-4">
       {/* HUD */}
       <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
         <span>
@@ -164,7 +267,7 @@ export default function TicTacToeMultiplayer({ gameId, sessionId, mySeat }: Prop
           </span>
         </span>
         <span>·</span>
-        <span>Move #{moves.length + (gameOver ? 0 : 1)}</span>
+        <span>vs {opponentName}</span>
         <span>·</span>
         <span
           className={
@@ -213,11 +316,25 @@ export default function TicTacToeMultiplayer({ gameId, sessionId, mySeat }: Prop
         })}
       </div>
 
-      {/* ERROR */}
       {error && (
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-magenta)]">
           ✕ {error}
         </p>
+      )}
+
+      {showOverlay && (
+        <MultiplayerEndOverlay
+          outcome={outcome}
+          opponentName={opponentName}
+          iVoted={rematch.iVoted}
+          opponentVoted={rematch.opponentVoted}
+          opponentPresent={rematch.opponentPresent}
+          voting={rematch.voting || leaving}
+          errorMessage={rematch.voteError}
+          onRematch={rematch.requestRematch}
+          onCancelVote={rematch.cancelVote}
+          onLeave={handleLeave}
+        />
       )}
     </div>
   );
