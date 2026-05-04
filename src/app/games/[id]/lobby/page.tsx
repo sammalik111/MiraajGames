@@ -4,7 +4,7 @@ import Navbar from "@/components/navbar";
 import { games } from "@/data/gameData";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 
 // Mirrors the JSON shape returned by POST/PUT/DELETE on the gameRoom route.
@@ -31,6 +31,7 @@ export default function GameLobbyPage() {
   const gameID = params.id;
   const game = games.find((g) => g.id === parseInt(gameID, 10));
   const { userId, authed, loading: authLoading } = useAuth();
+  const router = useRouter();
 
   // Two pieces of UI state:
   //   snapshot — when set, render the in-room view; when null, render the
@@ -157,8 +158,14 @@ export default function GameLobbyPage() {
   };
 
   const handleStartGame = () => {
-    // Stub — gameplay wiring lives in a future PR.
-    setError("Start game: not implemented yet.");
+    if (!snapshot) return;
+    if (!snapshot.room.isFull) {
+      setError("Waiting for more players before starting.");
+      return;
+    }
+    router.push(
+      `/games/${encodeURIComponent(gameID)}/play?session=${encodeURIComponent(snapshot.room.id)}`,
+    );
   };
 
   // ---- 404 for unknown game --------------------------------------------

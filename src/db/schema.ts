@@ -368,24 +368,40 @@ export const gameSessions = pgTable("game_sessions", {
     .defaultNow(),
 });
 
-// The moves made in a game room.
-// FK column is `game_session_id` — same target, name matches the referenced
-// table instead of the older "gameRoom" naming.
-export const gameMoves = pgTable("game_moves", {
-  id: text("id").primaryKey(),
-  gameSessionId: text("game_session_id")
-    .notNull()
-    .references(() => gameSessions.id, { onDelete: "cascade" }),
-  // Nullable + set-null on user delete — past moves survive the
-  // sender's account deletion as anonymized history.
-  senderId: text("sender_id").references(() => users.id, {
-    onDelete: "set null",
-  }),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+// Append-only event log of moves in a multiplayer session. Server stays
+// game-agnostic: it stores ordered moves with opaque jsonb payloads. Each
+// game's client interprets its own payload shape (TicTacToe: { cell },
+// Battleship: { type, x, y }, Pool: { angleDeg, power }, etc.).
+//
+// move_number is the canonical ordering. Composite (session, move_number)
+// is unique so two players can't claim the same slot, and it's the index
+// the GET endpoint uses to fetch "moves since N".
+export const gameMoves = pgTable(
+  "game_moves",
+  {
+    id: text("id").primaryKey(),
+    gameSessionId: text("game_session_id")
+      .notNull()
+      .references(() => gameSessions.id, { onDelete: "cascade" }),
+    // Nullable + set-null on user delete — past moves survive the
+    // sender's account deletion as anonymized history.
+    senderId: text("sender_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // 0-indexed sequence number. First move = 0.
+    moveNumber: integer("move_number").notNull(),
+    // Game-specific move shape. Kept opaque server-side.
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // Replay queries (`WHERE session_id = ? AND move_number > N ORDER BY move_number`)
+    // hit this index instead of scanning the table.
+    index("game_moves_session_seq_idx").on(t.gameSessionId, t.moveNumber),
+  ],
+);
 
 // Participants in a multiplayer session.
 // One row per (session, user) — same shape as conversation_participants —
@@ -438,5 +454,14 @@ export type GameSession = typeof gameSessions.$inferSelect;
 export type NewGameSession = typeof gameSessions.$inferInsert;
 export type GameMove = typeof gameMoves.$inferSelect;
 export type NewGameMove = typeof gameMoves.$inferInsert;
+
+// Shared move-payload types. Server doesn't care about these — only client
+// game components interpret them. Add new entries as you bring more games
+// online (chess, etc.).
+export type TicTacToeMove = { cell: number }; // 0..8
+export type BattleshipMove =
+  | { type: "place"; ship: string; x: number; y: number; orientation: "h" | "v" }
+  | { type: "fire"; x: number; y: number };
+export type PoolMove = { angleDeg: number; power: number };
 export type GameParticipant = typeof gameParticipants.$inferSelect;
 export type NewGameParticipant = typeof gameParticipants.$inferInsert;
