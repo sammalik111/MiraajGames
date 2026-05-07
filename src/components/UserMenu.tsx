@@ -79,7 +79,16 @@ function MiniAvatar({
   );
 }
 
-export default function UserMenu() {
+interface Props {
+  // "default"  — bar/inline usage; dropdown opens to the bottom-right of
+  //              the avatar.
+  // "rail"     — used inside NavRail (fixed left, narrow); dropdown opens
+  //              to the RIGHT of the avatar and grows UPWARD so it
+  //              doesn't fall off-screen on either axis.
+  placement?: "default" | "rail";
+}
+
+export default function UserMenu({ placement = "default" }: Props = {}) {
   const { user, authed, loading } = useAuth();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -161,6 +170,10 @@ export default function UserMenu() {
   }
 
   if (!authed) {
+    // In the rail (narrow), guest-state UI is rendered by NavRail itself
+    // (a single sign-in icon). Here the wide variants are used in any
+    // future placement that needs them.
+    if (placement === "rail") return null;
     return (
       <div className="flex items-center gap-2">
         <Link
@@ -186,16 +199,31 @@ export default function UserMenu() {
     userObj?.name || userObj?.email?.split("@")[0] || "?";
   const avatarUrl = userObj?.image ?? null;
 
-  // Menu definition. To add a new user-scoped feature, drop a row here.
-  // Order matters — this is the order they'll render.
-  const items: MenuItem[] = [
-    { href: "/profile", label: "Profile" },
-    { href: "/messages", label: "Messages", badge: unread || null },
-    { divider: true, label: "" },
-    { href: "/contactUs", label: "Contact" },
-    { divider: true, label: "" },
-    { onClick: handleSignOut, label: "Sign Out", tone: "danger" },
-  ];
+  // Menu definition. In the rail, Profile and Messages are already on
+  // the rail itself, so this dropdown is leaner — sign-out and future
+  // settings only. Outside the rail (legacy/other placements) we keep
+  // the full list.
+  const items: MenuItem[] = placement === "rail"
+    ? [
+        { onClick: handleSignOut, label: "Sign Out", tone: "danger" },
+      ]
+    : [
+        { href: "/profile", label: "Profile" },
+        { href: "/messages", label: "Messages", badge: unread || null },
+        { divider: true, label: "" },
+        { href: "/contactUs", label: "Contact" },
+        { divider: true, label: "" },
+        { onClick: handleSignOut, label: "Sign Out", tone: "danger" },
+      ];
+
+  // Dropdown positioning differs per placement.
+  const dropdownPositionClasses =
+    placement === "rail"
+      ? // Anchored to the right of the avatar, growing upward so it never
+        // falls off the bottom of the viewport. left-full + ml-2 puts it
+        // immediately to the right of the rail.
+        "absolute left-full bottom-0 ml-2 origin-bottom-left"
+      : "absolute right-0 mt-2 origin-top-right";
 
   return (
     <div ref={wrapRef} className="relative">
@@ -203,20 +231,25 @@ export default function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-label="User menu"
         aria-expanded={open}
+        title={placement === "rail" ? displayName : undefined}
         className="flex items-center gap-2 group"
       >
-        <MiniAvatar name={displayName} image={avatarUrl} size={36} />
-        {/* Hide name on small screens (mobile nav has it). Bare avatar on phones. */}
-        <span className="hidden xl:flex flex-col leading-tight items-start">
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
-            Player
+        <MiniAvatar name={displayName} image={avatarUrl} size={placement === "rail" ? 32 : 36} />
+        {/* Username next to avatar — only in placements with horizontal
+            room. Rail (56px) hides it. */}
+        {placement !== "rail" && (
+          <span className="hidden xl:flex flex-col leading-tight items-start">
+            <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+              Player
+            </span>
+            <span className="font-mono text-xs text-[color:var(--fg)] group-hover:text-[color:var(--neon-cyan)] transition">
+              {displayName}
+            </span>
           </span>
-          <span className="font-mono text-xs text-[color:var(--fg)] group-hover:text-[color:var(--neon-cyan)] transition">
-            {displayName}
-          </span>
-        </span>
-        {/* Unread dot on the avatar itself — visible on every screen size */}
-        {unread > 0 && (
+        )}
+        {/* The Messages icon in the rail already shows an unread badge,
+            so suppress the redundant avatar dot in rail placement. */}
+        {placement !== "rail" && unread > 0 && (
           <span
             aria-hidden
             className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[color:var(--neon-magenta)] ring-2 ring-[color:var(--bg)]"
@@ -227,11 +260,14 @@ export default function UserMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 origin-top-right border border-[color:var(--border-strong)] bg-[color:var(--surface-1)] shadow-[0_0_40px_-10px_rgba(0,255,255,0.4)]"
+          className={`${dropdownPositionClasses} w-64 border border-[color:var(--border-strong)] bg-[color:var(--surface-1)] shadow-[0_0_40px_-10px_rgba(0,255,255,0.4)] z-50`}
           style={{
             animation: "menuOpen 160ms ease-out",
             clipPath:
-              "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px))",
+              placement === "rail"
+                ? // mirror the corner pattern so it points back at the rail
+                  "polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px)"
+                : "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px))",
           }}
         >
           <style jsx>{`

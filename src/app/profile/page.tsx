@@ -118,7 +118,7 @@ export default function Profile() {
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [showAvatarForm, setShowAvatarForm] = useState(false);
-  
+
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
@@ -329,8 +329,37 @@ export default function Profile() {
           />
         )}
 
+        {/* Sticky section nav — anchor links that smooth-scroll to each
+            section below. Sticks to the top of the viewport once the
+            user scrolls past the identity card so jumping between
+            sections is one click no matter how far down the page they
+            are. All sections still render eagerly — this just helps
+            navigation, it doesn't gate any content. */}
+        <nav
+          aria-label="Profile sections"
+          className="sticky top-0 z-20 mt-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-2 bg-[color:var(--bg)]/85 backdrop-blur-xl border-y border-[color:var(--border)]"
+        >
+          <ul className="flex gap-1 overflow-x-auto -mx-1 px-1 [scrollbar-width:none]">
+            {[
+              { href: "#friends", label: "Friends" },
+              { href: "#account", label: "Account" },
+              { href: "#appearance", label: "Theme" },
+              { href: "#favorites", label: "Favorites" },
+            ].map((item) => (
+              <li key={item.href}>
+                <a
+                  href={item.href}
+                  className="block whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.22em] px-3 py-2 text-[color:var(--fg-muted)] hover:text-[color:var(--neon-cyan)] hover:bg-[color:var(--surface-2)] transition"
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
         {/* Friends */}
-        <section className="mt-12">
+        <section id="friends" className="mt-12 scroll-mt-20">
           <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
@@ -382,7 +411,7 @@ export default function Profile() {
         </section>
 
         {/* Account */}
-        <section className="mt-12">
+        <section id="account" className="mt-12 scroll-mt-20">
           <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
@@ -499,7 +528,7 @@ export default function Profile() {
         {/* Appearance — theme picker lives here so the navbar stays clean
             and theme selection feels like a real settings choice rather
             than a quick toggle. */}
-        <section className="mt-12">
+        <section id="appearance" className="mt-12 scroll-mt-20">
           <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
@@ -522,7 +551,7 @@ export default function Profile() {
         </section>
 
         {/* Favorites */}
-        <section className="mt-12">
+        <section id="favorites" className="mt-12 scroll-mt-20">
           <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">

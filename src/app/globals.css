@@ -285,6 +285,13 @@ body {
   transition: background-color 200ms ease, color 200ms ease;
 }
 
+/* Make room for the fixed-position NavRail on desktop. The rail is 56px
+   wide; padding-left shifts every page's content right of it. Below the
+   md breakpoint there's no rail, so no padding needed. */
+@media (min-width: 768px) {
+  body { padding-left: 56px; }
+}
+
 /* Subtle tech grid overlay. `--grid-on` lets non-cyberpunk themes
    disable it without removing the rule. (Setting --grid-line to
    transparent already kills the visual; opacity is belt-and-braces.) */

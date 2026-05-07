@@ -145,12 +145,11 @@ export default function Home() {
               {games.length} available
             </span>
           </div>
-              
-          <div className="font-mono text-xs uppercase tracking-[0.3em] text-[color:var(--neon-cyan)]">
+
+          <div className="font-mono text-xs uppercase tracking-[0.3em] text-[color:var(--neon-cyan)] mt-8">
             ▸ Single Player
           </div>
-          <br></br>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {singlePlayerGames.map((game) => (
               <GameCard
                 key={game.id}
@@ -163,12 +162,11 @@ export default function Home() {
               />
             ))}
           </div>
-          <br></br>
-          <div className="font-mono text-xs uppercase tracking-[0.3em] text-[color:var(--neon-cyan)]">
+
+          <div className="font-mono text-xs uppercase tracking-[0.3em] text-[color:var(--neon-cyan)] mt-12">
             ▸ Multi Player
-          </div>  
-          <br></br>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          </div>
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {multiPlayerGames.map((game) => (
               <GameCard
                 key={game.id}
@@ -181,7 +179,6 @@ export default function Home() {
               />
             ))}
           </div>
-
         </section>
       </main>
     </div>
