@@ -3,12 +3,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* -----------------------------------------------------------------------------
-   Cyberpunk HUD theme
-   Readable body text + neon accents + chamfered HUD panels.
+   Theme system.
+   Every theme defines the same set of CSS variables. Components stay
+   identical — they read `var(--neon-cyan)` etc., so swapping the
+   theme attribute on <html> retints the entire app. Each theme also
+   provides:
+     --hud-corner-large / --hud-corner-small : clip-path corner sizes
+     --hud-radius                            : fallback border-radius
+     --grid-on                               : 1 to show the grid bg, 0 to hide
+     --display-tracking                      : letter-spacing for display headings
+     --neon-glow                             : opacity multiplier for shadows
+
+   Apply by setting <html data-theme="cyberpunk|solarpunk|minimal|city">,
+   plus <html class="dark"> for dark mode within that theme.
 ----------------------------------------------------------------------------- */
 
-:root {
-  /* Light "augmented daytime" */
+/* ---- Cyberpunk (default) ---- */
+:root,
+[data-theme="cyberpunk"] {
   --neon-cyan: #0096a7;
   --neon-magenta: #d11a6a;
   --neon-yellow: #b58900;
@@ -32,10 +44,18 @@
   --scrollbar-track: rgba(12, 20, 34, 0.06);
   --scrollbar-thumb: var(--neon-cyan);
   --placeholder: rgba(12, 20, 34, 0.45);
+
+  --hud-corner-large: 12px;
+  --hud-corner-small: 4px;
+  --hud-radius: 0px;
+  --grid-on: 1;
+  --display-tracking: 0.02em;
+  --neon-glow: 1;
   color-scheme: light;
 }
 
-.dark {
+.dark,
+[data-theme="cyberpunk"].dark {
   --neon-cyan: #00f0ff;
   --neon-magenta: #ff2a6d;
   --neon-yellow: #fff200;
@@ -62,6 +82,192 @@
   color-scheme: dark;
 }
 
+/* ---- Solarpunk: warm greens, honey golds, organic curves ---- */
+[data-theme="solarpunk"] {
+  --neon-cyan: #4a9b5d;       /* leafy primary */
+  --neon-magenta: #c87c4e;    /* terracotta secondary */
+  --neon-yellow: #d4a017;     /* honey */
+  --neon-lime: #6fb87a;       /* fresh sprout */
+
+  --bg: #faf6e8;
+  --bg-grad-1: rgba(74, 155, 93, 0.06);
+  --bg-grad-2: rgba(212, 160, 23, 0.05);
+  --bg-grad-3: #efe7c8;
+  --grid-line: transparent;     /* no tech grid in a solarpunk world */
+
+  --fg: #2b3a26;
+  --fg-muted: #6e7960;
+  --surface: #ffffff;
+  --surface-2: #f3eed4;
+  --border: rgba(60, 80, 40, 0.18);
+  --border-strong: rgba(60, 80, 40, 0.4);
+
+  --selection-bg: rgba(74, 155, 93, 0.3);
+  --selection-fg: #2b3a26;
+  --scrollbar-track: rgba(60, 80, 40, 0.08);
+  --scrollbar-thumb: var(--neon-cyan);
+  --placeholder: rgba(60, 80, 40, 0.45);
+
+  --hud-corner-large: 0px;
+  --hud-corner-small: 0px;
+  --hud-radius: 14px;
+  --grid-on: 0;
+  --display-tracking: 0;
+  --neon-glow: 0.4;
+  color-scheme: light;
+}
+
+[data-theme="solarpunk"].dark {
+  --neon-cyan: #6fb87a;
+  --neon-magenta: #e89867;
+  --neon-yellow: #f0b945;
+  --neon-lime: #9bd9a0;
+
+  --bg: #0e1f12;
+  --bg-grad-1: rgba(155, 217, 160, 0.06);
+  --bg-grad-2: rgba(232, 152, 103, 0.05);
+  --bg-grad-3: #081108;
+  --grid-line: transparent;
+
+  --fg: #e6efd5;
+  --fg-muted: #95a589;
+  --surface: #142a18;
+  --surface-2: #1a3621;
+  --border: rgba(155, 217, 160, 0.18);
+  --border-strong: rgba(155, 217, 160, 0.4);
+
+  --selection-bg: rgba(155, 217, 160, 0.3);
+  --selection-fg: #0e1f12;
+  --scrollbar-track: rgba(155, 217, 160, 0.06);
+  --scrollbar-thumb: var(--neon-cyan);
+  --placeholder: rgba(230, 239, 213, 0.5);
+  color-scheme: dark;
+}
+
+/* ---- Minimal: black/white/blue, square corners, no chrome ---- */
+[data-theme="minimal"] {
+  --neon-cyan: #1a73e8;
+  --neon-magenta: #1a73e8;
+  --neon-yellow: #1a73e8;
+  --neon-lime: #1a73e8;
+
+  --bg: #ffffff;
+  --bg-grad-1: transparent;
+  --bg-grad-2: transparent;
+  --bg-grad-3: #ffffff;
+  --grid-line: transparent;
+
+  --fg: #18181b;
+  --fg-muted: #71717a;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.32);
+
+  --selection-bg: rgba(26, 115, 232, 0.18);
+  --selection-fg: #18181b;
+  --scrollbar-track: rgba(0, 0, 0, 0.04);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.3);
+  --placeholder: rgba(0, 0, 0, 0.4);
+
+  --hud-corner-large: 0px;
+  --hud-corner-small: 0px;
+  --hud-radius: 6px;
+  --grid-on: 0;
+  --display-tracking: -0.02em;
+  --neon-glow: 0;
+  color-scheme: light;
+}
+
+[data-theme="minimal"].dark {
+  --neon-cyan: #60a5fa;
+  --neon-magenta: #60a5fa;
+  --neon-yellow: #60a5fa;
+  --neon-lime: #60a5fa;
+
+  --bg: #0a0a0a;
+  --bg-grad-1: transparent;
+  --bg-grad-2: transparent;
+  --bg-grad-3: #0a0a0a;
+  --grid-line: transparent;
+
+  --fg: #fafafa;
+  --fg-muted: #a1a1aa;
+  --surface: #18181b;
+  --surface-2: #27272a;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.28);
+
+  --selection-bg: rgba(96, 165, 250, 0.25);
+  --selection-fg: #fafafa;
+  --scrollbar-track: rgba(255, 255, 255, 0.04);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.25);
+  --placeholder: rgba(255, 255, 255, 0.4);
+  color-scheme: dark;
+}
+
+/* ---- City at Night: deep navy, streetlamp amber, soft glow ---- */
+[data-theme="city"] {
+  --neon-cyan: #5b8def;
+  --neon-magenta: #ff6b9d;
+  --neon-yellow: #ffaa3b;
+  --neon-lime: #ffba66;
+
+  --bg: #f3ebe2;
+  --bg-grad-1: rgba(91, 141, 239, 0.06);
+  --bg-grad-2: rgba(255, 170, 59, 0.05);
+  --bg-grad-3: #e8ddd0;
+  --grid-line: rgba(45, 31, 58, 0.04);
+
+  --fg: #2d1f3a;
+  --fg-muted: #6c5a78;
+  --surface: #ffffff;
+  --surface-2: #f8f0e6;
+  --border: rgba(45, 31, 58, 0.16);
+  --border-strong: rgba(45, 31, 58, 0.36);
+
+  --selection-bg: rgba(91, 141, 239, 0.22);
+  --selection-fg: #2d1f3a;
+  --scrollbar-track: rgba(45, 31, 58, 0.06);
+  --scrollbar-thumb: var(--neon-yellow);
+  --placeholder: rgba(45, 31, 58, 0.45);
+
+  --hud-corner-large: 0px;
+  --hud-corner-small: 0px;
+  --hud-radius: 10px;
+  --grid-on: 0;
+  --display-tracking: 0.04em;
+  --neon-glow: 0.7;
+  color-scheme: light;
+}
+
+[data-theme="city"].dark {
+  --neon-cyan: #6fa3ff;
+  --neon-magenta: #ff79c6;
+  --neon-yellow: #ffba66;
+  --neon-lime: #ffd09b;
+
+  --bg: #0a1428;
+  --bg-grad-1: rgba(255, 186, 102, 0.07);
+  --bg-grad-2: rgba(111, 163, 255, 0.05);
+  --bg-grad-3: #050b1a;
+  --grid-line: rgba(255, 200, 150, 0.04);
+
+  --fg: #e6dccf;
+  --fg-muted: #8a8499;
+  --surface: #11203d;
+  --surface-2: #162a4f;
+  --border: rgba(255, 200, 150, 0.16);
+  --border-strong: rgba(255, 200, 150, 0.38);
+
+  --selection-bg: rgba(255, 186, 102, 0.25);
+  --selection-fg: #0a1428;
+  --scrollbar-track: rgba(255, 200, 150, 0.06);
+  --scrollbar-thumb: var(--neon-yellow);
+  --placeholder: rgba(230, 220, 207, 0.5);
+  color-scheme: dark;
+}
+
 * { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; min-height: 100%; }
@@ -79,13 +285,16 @@ body {
   transition: background-color 200ms ease, color 200ms ease;
 }
 
-/* Subtle tech grid overlay — much lighter than arcade scanlines */
+/* Subtle tech grid overlay. `--grid-on` lets non-cyberpunk themes
+   disable it without removing the rule. (Setting --grid-line to
+   transparent already kills the visual; opacity is belt-and-braces.) */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 1;
+  opacity: var(--grid-on, 1);
   background-image:
     linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
@@ -108,11 +317,20 @@ body::-webkit-scrollbar-thumb {
 }
 
 /* -----------------------------------------------------------------------------
-   Font utilities
+   Font utilities — `display` tracking is theme-controlled so minimal can
+   feel tighter and city/cyberpunk can stay airier.
 ----------------------------------------------------------------------------- */
-.font-display { font-family: var(--font-display), "Orbitron", "Space Grotesk", sans-serif; letter-spacing: 0.02em; }
+.font-display { font-family: var(--font-display), "Orbitron", "Space Grotesk", sans-serif; letter-spacing: var(--display-tracking, 0.02em); }
 .font-mono    { font-family: var(--font-mono-tech), "JetBrains Mono", ui-monospace, monospace; }
 .font-term    { font-family: var(--font-term), "VT323", monospace; }
+
+/* In minimal we want display headings to read as a clean modern sans
+   rather than Orbitron's geometric character. Override at the theme
+   level so we don't have to touch any component. */
+[data-theme="minimal"] .font-display {
+  font-family: var(--font-geist-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+}
 
 /* -----------------------------------------------------------------------------
    Neon utilities — restrained: thin borders, small glows.
@@ -122,60 +340,86 @@ body::-webkit-scrollbar-thumb {
 .text-yellow  { color: var(--neon-yellow); }
 .text-lime    { color: var(--neon-lime); }
 
-.dark .glow-cyan    { text-shadow: 0 0 8px rgba(0, 240, 255, 0.55); }
-.dark .glow-magenta { text-shadow: 0 0 8px rgba(255, 42, 109, 0.55); }
+/* Glow strength is theme-driven via --neon-glow (0..1). Minimal sets it
+   to 0 (no glow); cyberpunk leaves it at 1 (full neon). */
+.dark .glow-cyan    { text-shadow: 0 0 calc(8px * var(--neon-glow, 1)) color-mix(in srgb, var(--neon-cyan) 55%, transparent); }
+.dark .glow-magenta { text-shadow: 0 0 calc(8px * var(--neon-glow, 1)) color-mix(in srgb, var(--neon-magenta) 55%, transparent); }
 
 .ring-cyan,
 .hover\:ring-cyan:hover,
-.focus\:ring-cyan:focus    { box-shadow: 0 0 0 1px var(--neon-cyan), 0 0 18px -2px color-mix(in srgb, var(--neon-cyan) 40%, transparent); }
+.focus\:ring-cyan:focus    {
+  box-shadow:
+    0 0 0 1px var(--neon-cyan),
+    0 0 calc(18px * var(--neon-glow, 1)) -2px color-mix(in srgb, var(--neon-cyan) 40%, transparent);
+}
 
 .ring-magenta,
 .hover\:ring-magenta:hover,
-.focus\:ring-magenta:focus { box-shadow: 0 0 0 1px var(--neon-magenta), 0 0 18px -2px color-mix(in srgb, var(--neon-magenta) 40%, transparent); }
+.focus\:ring-magenta:focus {
+  box-shadow:
+    0 0 0 1px var(--neon-magenta),
+    0 0 calc(18px * var(--neon-glow, 1)) -2px color-mix(in srgb, var(--neon-magenta) 40%, transparent);
+}
 
 /* -----------------------------------------------------------------------------
-   HUD panel — chamfered corners via clip-path. Two-layer for 1px "border".
-   Use as:
-     <div class="hud-panel"><div class="hud-panel-inner">...</div></div>
+   HUD panel — chamfered corners via clip-path on cyberpunk; falls back to
+   border-radius on themes that set --hud-corner-large to 0px (solarpunk,
+   minimal, city). Same component, different look — driven entirely by
+   theme variables.
 ----------------------------------------------------------------------------- */
 .hud-clip {
   clip-path: polygon(
-    0 12px, 12px 0,
-    calc(100% - 4px) 0, 100% 4px,
-    100% calc(100% - 12px), calc(100% - 12px) 100%,
-    4px 100%, 0 calc(100% - 4px)
+    0 var(--hud-corner-large), var(--hud-corner-large) 0,
+    calc(100% - var(--hud-corner-small)) 0, 100% var(--hud-corner-small),
+    100% calc(100% - var(--hud-corner-large)), calc(100% - var(--hud-corner-large)) 100%,
+    var(--hud-corner-small) 100%, 0 calc(100% - var(--hud-corner-small))
   );
+  border-radius: var(--hud-radius, 0);
 }
+
+/* When the theme uses border-radius instead of clip-path, suppress the
+   clip-path so it doesn't square the radius. */
+[data-theme="solarpunk"] .hud-clip,
+[data-theme="minimal"] .hud-clip,
+[data-theme="city"] .hud-clip { clip-path: none; }
 
 .hud-panel {
   position: relative;
   background: var(--border-strong);
   padding: 1px;
   clip-path: polygon(
-    0 12px, 12px 0,
-    calc(100% - 4px) 0, 100% 4px,
-    100% calc(100% - 12px), calc(100% - 12px) 100%,
-    4px 100%, 0 calc(100% - 4px)
+    0 var(--hud-corner-large), var(--hud-corner-large) 0,
+    calc(100% - var(--hud-corner-small)) 0, 100% var(--hud-corner-small),
+    100% calc(100% - var(--hud-corner-large)), calc(100% - var(--hud-corner-large)) 100%,
+    var(--hud-corner-small) 100%, 0 calc(100% - var(--hud-corner-small))
   );
+  border-radius: var(--hud-radius, 0);
   transition: background 160ms ease;
 }
+[data-theme="solarpunk"] .hud-panel,
+[data-theme="minimal"] .hud-panel,
+[data-theme="city"] .hud-panel { clip-path: none; }
 .hud-panel:hover { background: var(--neon-cyan); }
 
 .hud-panel-inner {
   background: var(--surface);
   clip-path: polygon(
-    0 11px, 11px 0,
-    calc(100% - 3px) 0, 100% 3px,
-    100% calc(100% - 11px), calc(100% - 11px) 100%,
-    3px 100%, 0 calc(100% - 3px)
+    0 calc(var(--hud-corner-large) - 1px), calc(var(--hud-corner-large) - 1px) 0,
+    calc(100% - max(var(--hud-corner-small) - 1px, 0px)) 0, 100% max(var(--hud-corner-small) - 1px, 0px),
+    100% calc(100% - calc(var(--hud-corner-large) - 1px)), calc(100% - calc(var(--hud-corner-large) - 1px)) 100%,
+    max(var(--hud-corner-small) - 1px, 0px) 100%, 0 calc(100% - max(var(--hud-corner-small) - 1px, 0px))
   );
+  border-radius: max(calc(var(--hud-radius, 0) - 1px), 0);
   height: 100%;
 }
+[data-theme="solarpunk"] .hud-panel-inner,
+[data-theme="minimal"] .hud-panel-inner,
+[data-theme="city"] .hud-panel-inner { clip-path: none; }
 
 /* HUD panel with magenta accent variant */
 .hud-panel-magenta:hover { background: var(--neon-magenta); }
 
-/* Tagline chip — small sharp pill with bracket vibe */
+/* Tagline chip — sharp pill on cyberpunk, soft pill on the rest. */
 .hud-chip {
   display: inline-flex;
   align-items: center;
@@ -189,7 +433,11 @@ body::-webkit-scrollbar-thumb {
   background: var(--surface);
   color: var(--fg);
   clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  border-radius: var(--hud-radius, 0);
 }
+[data-theme="solarpunk"] .hud-chip,
+[data-theme="minimal"] .hud-chip,
+[data-theme="city"] .hud-chip { clip-path: none; }
 
 /* Corner bracket decoration — use on top-left of a panel header */
 .hud-bracket::before {
@@ -204,7 +452,8 @@ body::-webkit-scrollbar-thumb {
 @keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0.15; } }
 .blink { animation: blink 1.05s steps(2, end) infinite; }
 
-/* Subtle scanline for HUD panels — way less intense than arcade */
+/* Subtle scanline for HUD panels — only on cyberpunk; the other themes
+   omit it for a cleaner look. */
 .scanline-overlay {
   position: relative;
 }
@@ -219,6 +468,239 @@ body::-webkit-scrollbar-thumb {
     rgba(255, 255, 255, 0.02) 3px 4px
   );
   mix-blend-mode: overlay;
+}
+[data-theme="solarpunk"] .scanline-overlay::after,
+[data-theme="minimal"] .scanline-overlay::after,
+[data-theme="city"] .scanline-overlay::after { display: none; }
+
+/* The ▸ Online cursor blink reads as cyberpunk-specific terminal flair.
+   Quiet it elsewhere. */
+[data-theme="solarpunk"] .blink,
+[data-theme="minimal"] .blink,
+[data-theme="city"] .blink { animation: none; opacity: 1; }
+
+/* =====================================================================
+   PER-THEME PERSONALITY OVERRIDES
+   These are the rules that make the four themes feel like genuinely
+   different apps without any component-level changes. Same divs, same
+   classes — but the way panels, chips, buttons, dividers, and
+   backgrounds look is dictated entirely by the active theme.
+   =====================================================================*/
+
+/* ---- Solarpunk: warm, organic, papery ----------------------------- */
+[data-theme="solarpunk"] body {
+  /* Sun radiating from upper-right + a soft ground gradient at the base */
+  background:
+    radial-gradient(ellipse 80% 50% at 85% 0%, rgba(212, 160, 23, 0.18), transparent 60%),
+    radial-gradient(ellipse 50% 30% at 0% 100%, rgba(74, 155, 93, 0.12), transparent 70%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-grad-3) 100%);
+}
+[data-theme="solarpunk"].dark body {
+  background:
+    radial-gradient(ellipse 70% 40% at 80% 10%, rgba(240, 185, 69, 0.10), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155, 217, 160, 0.10), transparent 65%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-grad-3) 100%);
+}
+[data-theme="solarpunk"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 6px 18px -10px rgba(43, 58, 38, 0.25);
+}
+[data-theme="solarpunk"].dark .hud-panel {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 6px 22px -10px rgba(0, 0, 0, 0.6);
+}
+[data-theme="solarpunk"] .hud-panel:hover {
+  border-color: var(--neon-cyan);
+  background: transparent;
+}
+[data-theme="solarpunk"] .hud-panel-inner {
+  background: var(--surface);
+  border-radius: calc(var(--hud-radius) - 1px);
+}
+[data-theme="solarpunk"] .hud-chip {
+  border-radius: 999px;
+  border-width: 1px;
+  padding: 0.3rem 0.85rem;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+[data-theme="solarpunk"] .hud-bracket::before { content: "✿ "; color: var(--neon-yellow); }
+
+/* ---- Minimal: flat, hairline borders, no chrome ------------------- */
+[data-theme="minimal"] body {
+  background: var(--bg);
+}
+[data-theme="minimal"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 1px solid var(--border);
+  box-shadow: none;
+  transition: border-color 120ms ease;
+}
+[data-theme="minimal"] .hud-panel:hover {
+  background: transparent;
+  border-color: var(--border-strong);
+}
+[data-theme="minimal"] .hud-panel-inner {
+  background: var(--surface);
+  border-radius: calc(var(--hud-radius) - 1px);
+  height: 100%;
+}
+[data-theme="minimal"] .hud-chip {
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: var(--surface-2);
+  border-color: var(--border);
+  padding: 0.2rem 0.55rem;
+}
+[data-theme="minimal"] .hud-bracket::before { content: "▸ "; color: var(--fg-muted); }
+
+/* Pull body text in tighter — minimal feels claustrophobic-clean */
+[data-theme="minimal"] body { letter-spacing: -0.005em; }
+
+/* Hairline horizontal rules instead of chunky neon dividers */
+[data-theme="minimal"] hr,
+[data-theme="minimal"] [class*="border-b"] { border-color: var(--border) !important; }
+
+/* ---- City at Night: warm window-glow, layered depth --------------- */
+[data-theme="city"] body {
+  /* Dusty rose dawn → no skyline (unobtrusive light mode) */
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 0%, rgba(255, 170, 59, 0.10), transparent 55%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-grad-3) 100%);
+}
+[data-theme="city"].dark body {
+  /* Layer 1: warm window glow scattered across the horizon
+     Layer 2: cool sky gradient
+     Layer 3: subtle cityscape silhouette at the bottom */
+  background:
+    radial-gradient(circle 1.5px at 20% 78%, rgba(255, 200, 120, 0.5), transparent),
+    radial-gradient(circle 1.5px at 32% 82%, rgba(255, 170, 80, 0.4), transparent),
+    radial-gradient(circle 1.5px at 47% 76%, rgba(255, 200, 130, 0.45), transparent),
+    radial-gradient(circle 1.5px at 65% 80%, rgba(255, 180, 90, 0.5), transparent),
+    radial-gradient(circle 1.5px at 78% 78%, rgba(255, 200, 120, 0.4), transparent),
+    radial-gradient(circle 1.5px at 90% 82%, rgba(255, 180, 90, 0.5), transparent),
+    radial-gradient(ellipse 80% 30% at 50% 100%, rgba(0, 0, 0, 0.4), transparent 70%),
+    linear-gradient(180deg, var(--bg) 0%, #07101f 100%);
+  background-attachment: fixed;
+  background-size: 200px 200px, 220px 220px, 180px 180px, 240px 240px, 200px 200px, 220px 220px, auto, auto;
+  background-position: 20% 78%, 32% 82%, 47% 76%, 65% 80%, 78% 78%, 90% 82%, 0 100%, 0 0;
+}
+[data-theme="city"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 1px solid var(--border);
+  box-shadow:
+    0 0 0 1px rgba(255, 186, 102, 0.04) inset,
+    0 8px 24px -12px rgba(255, 186, 102, 0.12);
+}
+[data-theme="city"].dark .hud-panel {
+  box-shadow:
+    0 0 0 1px rgba(255, 186, 102, 0.08) inset,
+    0 8px 32px -10px rgba(255, 186, 102, 0.15),
+    0 0 0 1px rgba(91, 141, 239, 0.05);
+}
+[data-theme="city"] .hud-panel:hover {
+  border-color: var(--neon-yellow);
+  background: transparent;
+}
+[data-theme="city"] .hud-panel-inner {
+  background: var(--surface);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: calc(var(--hud-radius) - 1px);
+}
+[data-theme="city"].dark .hud-panel-inner {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+[data-theme="city"] .hud-chip {
+  border-radius: 6px;
+  border-color: var(--neon-yellow);
+  background: color-mix(in srgb, var(--neon-yellow) 12%, var(--surface));
+  color: var(--fg);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+[data-theme="city"] .hud-bracket::before { content: "★ "; color: var(--neon-yellow); }
+
+/* Headings get a subtle warm glow on city dark */
+[data-theme="city"].dark .font-display {
+  text-shadow: 0 0 16px rgba(255, 186, 102, 0.18);
+}
+
+/* ---- Buttons (links/btns with bg or border accents) react per theme  */
+/* Solarpunk: softer rises */
+[data-theme="solarpunk"] button[class*="bg-[color:var(--neon-cyan)]"]:hover {
+  filter: brightness(1.05) saturate(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px rgba(74, 155, 93, 0.4);
+}
+
+/* Minimal: instant, no transform — matches the disciplined aesthetic */
+[data-theme="minimal"] button { transition: background-color 80ms ease, color 80ms ease; }
+[data-theme="minimal"] button:hover { transform: none !important; }
+[data-theme="minimal"] button[class*="bg-[color:var(--neon-cyan)]"] { color: white !important; }
+[data-theme="minimal"] button[class*="bg-[color:var(--neon-cyan)]"]:hover { filter: brightness(0.92); }
+
+/* City: warm under-glow on press */
+[data-theme="city"] button[class*="bg-[color:var(--neon-cyan)]"] {
+  background: var(--neon-yellow) !important;
+  color: var(--bg) !important;
+  border-radius: 6px;
+}
+[data-theme="city"] button[class*="bg-[color:var(--neon-cyan)]"]:hover {
+  box-shadow: 0 0 24px -4px var(--neon-yellow);
+}
+
+/* ---- Default (cyberpunk) keeps its sharp click feel via transform --*/
+[data-theme="cyberpunk"] button[class*="bg-[color:var(--neon-cyan)]"]:active {
+  transform: translateY(1px);
+}
+
+/* ---- Inputs / textareas tweaked per theme ------------------------- */
+[data-theme="solarpunk"] input,
+[data-theme="solarpunk"] textarea,
+[data-theme="solarpunk"] select {
+  border-radius: 8px;
+}
+[data-theme="minimal"] input,
+[data-theme="minimal"] textarea,
+[data-theme="minimal"] select {
+  border-radius: 4px;
+}
+[data-theme="city"] input,
+[data-theme="city"] textarea,
+[data-theme="city"] select {
+  border-radius: 6px;
+}
+[data-theme="city"].dark input:focus,
+[data-theme="city"].dark textarea:focus {
+  box-shadow: 0 0 0 1px var(--neon-yellow), 0 0 16px -4px var(--neon-yellow);
+}
+
+/* ---- Border-treated rectangles (the bordered divs all over the app) */
+[data-theme="solarpunk"] [class*="border-[color:var(--border-strong)]"],
+[data-theme="solarpunk"] [class*="border-[color:var(--border)]"] {
+  border-radius: calc(var(--hud-radius) - 4px);
+}
+[data-theme="minimal"] [class*="border-[color:var(--border-strong)]"],
+[data-theme="minimal"] [class*="border-[color:var(--border)]"] {
+  border-radius: 4px;
+}
+[data-theme="city"] [class*="border-[color:var(--border-strong)]"],
+[data-theme="city"] [class*="border-[color:var(--border)]"] {
+  border-radius: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

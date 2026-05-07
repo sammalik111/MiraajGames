@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { games } from "@/data/gameData";
 import GameCard from "@/components/gameCard";
+import ThemePicker from "@/components/ThemePicker";
 import Link from "next/link";
 
 interface ProfileStats {
@@ -493,6 +494,31 @@ export default function Profile() {
             </HudPanel>
           )}
 
+        </section>
+
+        {/* Appearance — theme picker lives here so the navbar stays clean
+            and theme selection feels like a real settings choice rather
+            than a quick toggle. */}
+        <section className="mt-12">
+          <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                ┌─ System · Appearance
+              </p>
+              <h3 className="font-display font-bold text-2xl mt-2 text-[color:var(--fg)]">
+                Theme
+              </h3>
+            </div>
+            <span className="hud-chip">visual</span>
+          </div>
+          <p className="mt-4 max-w-2xl text-sm text-[color:var(--fg-muted)] leading-relaxed">
+            Pick a visual style for the whole app. Each theme rewires colors,
+            shapes, glow, and chrome — components stay the same so your data
+            and layouts don&apos;t move, but the entire UI changes character.
+          </p>
+          <div className="mt-6">
+            <ThemePicker mode="inline" />
+          </div>
         </section>
 
         {/* Favorites */}
