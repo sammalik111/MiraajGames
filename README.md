@@ -65,6 +65,54 @@ npm run build
 sudo systemctl restart <service-name>
 sudo systemctl status <service-name>
 
+if you want to automate this update process, 
+
+1. create file that will request daily udpates 
+    nano ~/updateInstanceRequest.py
+2. fill it out to run these above commands 
+    #!/usr/bin/env python3
+
+    import subprocess
+    import os
+
+    APP_DIR = os.path.expanduser("~/app")
+
+    commands = [
+        "git pull origin main",
+        "npm run build",
+        "sudo systemctl restart miraaj"
+    ]
+
+    try:
+        os.chdir(APP_DIR)
+
+        for command in commands:
+            print(f"Running: {command}")
+
+            result = subprocess.run(
+                command,
+                shell=True,
+                check=True,
+                text=True,
+                capture_output=True
+            )
+
+            print(result.stdout)
+
+        print("Update completed successfully.")
+
+    except subprocess.CalledProcessError as e:
+        print(f"Command failed: {e.cmd}")
+        print(e.stderr)
+        raise
+
+3. crontab -e 
+4. open nano editor for cronjobs
+5. schedule a cron job to update once a day at 3am 
+    0 3 * * * /usr/bin/python3 /home/ec2-user/updateInstanceRequest.py >> /home/ec2-user/updateInstanceRequest.log 2>&1
+6. save this cron and verify it saved 
+    crontab -l
+
 
 USERDATA
 
