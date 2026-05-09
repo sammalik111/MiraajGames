@@ -58,6 +58,21 @@ const ICON = {
       <path d="M10 17l5-5-5-5M15 12H3" />
     </svg>
   ),
+  feedback: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <line x1="8" y1="10" x2="16" y2="10" />
+      <line x1="8" y1="14" x2="13" y2="14" />
+    </svg>
+  ),
+  dashboards: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="3" width="7" height="9" />
+      <rect x="14" y="3" width="7" height="5" />
+      <rect x="14" y="12" width="7" height="9" />
+      <rect x="3" y="16" width="7" height="5" />
+    </svg>
+  ),
 };
 
 const PRIMARY_NAV: NavItem[] = [
@@ -68,6 +83,7 @@ const PRIMARY_NAV: NavItem[] = [
 const ACCOUNT_NAV: NavItem[] = [
   { href: "/profile", label: "Profile", icon: ICON.profile },
   { href: "/messages", label: "Messages", icon: ICON.messages },
+  { href: "/contactUs", label: "Feedback", icon: ICON.feedback },
 ];
 
 function RailLink({
@@ -118,6 +134,10 @@ function RailLink({
 export default function NavRail() {
   const { authed } = useAuth();
   const [unread, setUnread] = useState(0);
+  // Whether the signed-in user is in process.env.ADMIN_IDS. Determined
+  // server-side via /api/admin/check; the env list itself never reaches
+  // the client.
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Pull unread count for the Messages badge.
   useEffect(() => {
@@ -146,6 +166,26 @@ export default function NavRail() {
     return () => {
       cancelled = true;
       clearInterval(t);
+    };
+  }, [authed]);
+
+  // One-shot admin check — runs once per auth state change. Cheap call
+  // (one row lookup + env-var membership), result is stable for the
+  // session, no need to re-poll.
+  useEffect(() => {
+    if (!authed) {
+      setIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/admin/check", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { isAdmin: false }))
+      .then((d: { isAdmin?: boolean }) => {
+        if (!cancelled) setIsAdmin(!!d.isAdmin);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
   }, [authed]);
 
@@ -181,6 +221,27 @@ export default function NavRail() {
             <nav className="flex flex-col items-center gap-1">
               <RailLink {...ACCOUNT_NAV[0]} />
               <RailLink {...ACCOUNT_NAV[1]} badge={unread} />
+              <RailLink {...ACCOUNT_NAV[2]}  />
+            </nav>
+          </>
+        )}
+
+        {/* Admin nav — only renders if the user passed the server-side
+            admin check. Linking to a route the user can't access would
+            just show them the 403 page; gating here keeps the rail
+            uncluttered for everyone else. */}
+        {authed && isAdmin && (
+          <>
+            <span
+              aria-hidden
+              className="block w-6 h-px bg-[color:var(--border)] my-1"
+            />
+            <nav className="flex flex-col items-center gap-1">
+              <RailLink
+                href="/dashboards"
+                label="Dashboards"
+                icon={ICON.dashboards}
+              />
             </nav>
           </>
         )}

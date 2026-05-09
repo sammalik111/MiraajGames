@@ -48,7 +48,13 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">
           {themeInit}
         </Script>
-        {/* Google AdSense — async, loaded once at the document level. */}
+        {/* Google AdSense — loader only. With Auto Ads enabled in the
+            AdSense console, this script alone is sufficient — Google
+            picks placements automatically. The old `enable_page_level_ads`
+            push is incompatible with dashboard-driven Auto Ads and throws
+            on client-side navigation when the layout re-runs. For manual
+            placements, use <AdSlot slot="..."/> which does its own push
+            once per <ins> on mount. */}
         <Script
           async
           strategy="afterInteractive"
