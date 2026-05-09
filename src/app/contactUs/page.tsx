@@ -7,12 +7,24 @@ import { useState } from "react";
 
 export default function ContactUs() {
     const [currentEmail, setCurrentEmail] = useState("");
-    const [currSubject, setCurrSubject] = useState("");
+    const [currentSubject, setCurrentSubject] = useState("");
     const [currentMessage, setCurrentMessage] = useState("");
 
 
-    const handleSubmit = () => {
-        return alert(`Email: ${currentEmail}\nSubject: ${currSubject}\nMessage: ${currentMessage}\n\nThis is a demo form, so the message won't actually be sent anywhere, but we appreciate you taking the time to fill it out!`)
+    const handleSubmit =  async() => {
+        // return alert(`Email: ${currentEmail}\nSubject: ${currSubject}\nMessage: ${currentMessage}\n\nThis is a demo form, so the message won't actually be sent anywhere, but we appreciate you taking the time to fill it out!`)
+        try {
+            const res = await fetch("/api/admin/feedback", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: currentEmail, subject: currentSubject, message: currentMessage }),
+            });
+            if (!res.ok) throw new Error();
+            alert("Thanks! submitted feedback");
+            
+        } catch {
+            alert("Unable to submit feedback"); // TODO: better error handling UI
+        } 
     };
 
     return (
@@ -33,7 +45,7 @@ export default function ContactUs() {
                         <HudPanel className="mt-6" innerClassName="p-6 space-y-4">
                             {[
                             { label: "Email", value: currentEmail, set: setCurrentEmail },
-                            { label: "Subject", value: currSubject, set: setCurrSubject },
+                            { label: "Subject", value: currentSubject, set: setCurrentSubject },
                             { label: "Message", value: currentMessage, set: setCurrentMessage },
                             ].map(({ label, value, set }) => (
                             <div key={label}>

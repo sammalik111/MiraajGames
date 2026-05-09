@@ -63,12 +63,14 @@ type ResultPayload = {
 type ReadyPayload = { type: "ready" };
 type GameStartPayload = { type: "game-start" };
 type RematchVotePayload = { type: "rematch-vote" };
+type ForfeitPayload = { type: "forfeit" };
 type MovePayload =
   | FirePayload
   | ResultPayload
   | ReadyPayload
   | GameStartPayload
-  | RematchVotePayload;
+  | RematchVotePayload
+  | ForfeitPayload;
 
 interface MoveRow {
   moveNumber: number;
@@ -244,11 +246,29 @@ export default function BattleshipMultiplayer({
     (p) => p.fire.senderId === opponentUserId && p.result?.payload.hit,
   ).length;
 
+  // ---- Forfeit detection ---------------------------------------------
+  // If either player bailed, gameOver flips immediately and the
+  // remaining player gets a "win by forfeit" overlay rather than waiting
+  // on a turn that won't come.
+  const forfeit = useMemo(
+    () =>
+      moves.find(
+        (m): m is MoveRow & { payload: ForfeitPayload } =>
+          (m.payload as { type?: string })?.type === "forfeit",
+      ) ?? null,
+    [moves],
+  );
+  const opponentForfeited = !!forfeit && forfeit.senderId === opponentUserId;
+  const iForfeited = !!forfeit && forfeit.senderId === myUserId;
+
   // ---- Win detection --------------------------------------------------
-  const iWon = myHits >= TOTAL_HIT_TARGET;
-  const iLost = opponentHits >= TOTAL_HIT_TARGET;
+  const iWonHits = myHits >= TOTAL_HIT_TARGET;
+  const iLostHits = opponentHits >= TOTAL_HIT_TARGET;
+  const iWon = iWonHits || opponentForfeited;
+  const iLost = iLostHits || iForfeited;
   const gameOver = iWon || iLost;
-  const myTurn = bothReady && !gameOver && turnSeat === mySeat && !shotInFlight;
+  const myTurn =
+    bothReady && !gameOver && turnSeat === mySeat && !shotInFlight;
 
   // ---- Defender side: respond to opponent's pending fire --------------
   // If a fire from the opponent is awaiting a result and the result is
@@ -396,12 +416,27 @@ export default function BattleshipMultiplayer({
     if (leaving) return;
     setLeaving(true);
     try {
+      // Same forfeit-then-leave flow as the other MP games. Posted
+      // before gameRoom DELETE so isFull is still true and the post
+      // passes the server's "game must be running" check.
+      if (!gameOver) {
+        await fetch(`/api/games/${gameId}/multiplayer/moves`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            payload: { type: "forfeit" },
+          }),
+        });
+      }
       await fetch(`/api/games/${gameId}/multiplayer/gameRoom`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomID: sessionId }),
       });
-    } catch {}
+    } catch {
+      /* take the user to the lobby regardless */
+    }
     router.push(`/games/${gameId}/lobby`);
   };
 
@@ -544,15 +579,27 @@ export default function BattleshipMultiplayer({
         <MultiplayerEndOverlay
           outcome={iWon ? "win" : "loss"}
           opponentName={opponentName}
-          headline={iWon ? "FLEET SUNK" : "YOU'RE SUNK"}
+          headline={
+            opponentForfeited
+              ? "WIN BY FORFEIT"
+              : iForfeited
+                ? "FORFEITED"
+                : iWon
+                  ? "FLEET SUNK"
+                  : "YOU'RE SUNK"
+          }
           subtitle={
-            iWon
-              ? `${opponentName}'s fleet is at the bottom of the ocean.`
-              : `${opponentName} found every last ship.`
+            opponentForfeited
+              ? `${opponentName} abandoned the match. The waters are yours.`
+              : iForfeited
+                ? "You left the match — counted as a loss."
+                : iWon
+                  ? `${opponentName}'s fleet is at the bottom of the ocean.`
+                  : `${opponentName} found every last ship.`
           }
           iVoted={rematch.iVoted}
           opponentVoted={rematch.opponentVoted}
-          opponentPresent={rematch.opponentPresent}
+          opponentPresent={rematch.opponentPresent && !forfeit}
           voting={rematch.voting || leaving}
           errorMessage={rematch.voteError}
           onRematch={rematch.requestRematch}

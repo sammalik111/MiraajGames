@@ -38,7 +38,12 @@ interface Props {
 type ShotPayload = { type: "shot"; angleDeg: number; power: number };
 type GameStartPayload = { type: "game-start" };
 type RematchVotePayload = { type: "rematch-vote" };
-type MovePayload = ShotPayload | GameStartPayload | RematchVotePayload;
+type ForfeitPayload = { type: "forfeit" };
+type MovePayload =
+  | ShotPayload
+  | GameStartPayload
+  | RematchVotePayload
+  | ForfeitPayload;
 
 interface MoveRow {
   moveNumber: number;
@@ -133,8 +138,24 @@ export default function PoolMultiplayer({
 
   const myTotal = (myUserId && tally[myUserId]) || 0;
   const opponentTotal = (opponentUserId && tally[opponentUserId]) || 0;
-  const iWon = myTotal >= TARGET_SUNK;
-  const iLost = opponentTotal >= TARGET_SUNK;
+  const iWonRack = myTotal >= TARGET_SUNK;
+  const iLostRack = opponentTotal >= TARGET_SUNK;
+
+  // Forfeit detection — same trick as the other MP games. Whoever
+  // posted the forfeit move loses; the other side wins immediately.
+  const forfeit = useMemo(
+    () =>
+      moves.find(
+        (m): m is MoveRow & { payload: ForfeitPayload } =>
+          (m.payload as { type?: string })?.type === "forfeit",
+      ) ?? null,
+    [moves],
+  );
+  const opponentForfeited = !!forfeit && forfeit.senderId === opponentUserId;
+  const iForfeited = !!forfeit && forfeit.senderId === myUserId;
+
+  const iWon = iWonRack || opponentForfeited;
+  const iLost = iLostRack || iForfeited;
   const gameOver = iWon || iLost;
 
   const turnSeat = shots.length % 2;
@@ -202,12 +223,26 @@ export default function PoolMultiplayer({
     if (leaving) return;
     setLeaving(true);
     try {
+      // Forfeit-then-leave: the opponent's polling sees the forfeit and
+      // gets a "win by forfeit" overlay instead of a stuck table.
+      if (!gameOver) {
+        await fetch(`/api/games/${gameId}/multiplayer/moves`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            payload: { type: "forfeit" },
+          }),
+        });
+      }
       await fetch(`/api/games/${gameId}/multiplayer/gameRoom`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomID: sessionId }),
       });
-    } catch {}
+    } catch {
+      /* take the user to the lobby regardless */
+    }
     router.push(`/games/${gameId}/lobby`);
   };
 
@@ -338,15 +373,27 @@ export default function PoolMultiplayer({
         <MultiplayerEndOverlay
           outcome={iWon ? "win" : "loss"}
           opponentName={opponentName}
-          headline={iWon ? "RACK CLOSED" : "BETTER LUCK"}
+          headline={
+            opponentForfeited
+              ? "WIN BY FORFEIT"
+              : iForfeited
+                ? "FORFEITED"
+                : iWon
+                  ? "RACK CLOSED"
+                  : "BETTER LUCK"
+          }
           subtitle={
-            iWon
-              ? `Eight in the corner. ${opponentName} couldn't hang.`
-              : `${opponentName} sank theirs first.`
+            opponentForfeited
+              ? `${opponentName} walked away from the table. Rack is yours.`
+              : iForfeited
+                ? "You left the table — counted as a loss."
+                : iWon
+                  ? `Eight in the corner. ${opponentName} couldn't hang.`
+                  : `${opponentName} sank theirs first.`
           }
           iVoted={rematch.iVoted}
           opponentVoted={rematch.opponentVoted}
-          opponentPresent={rematch.opponentPresent}
+          opponentPresent={rematch.opponentPresent && !forfeit}
           voting={rematch.voting || leaving}
           errorMessage={rematch.voteError}
           onRematch={rematch.requestRematch}

@@ -37,13 +37,21 @@ interface Props {
 type MovePayload =
   | TicTacToeMove
   | { type: "rematch-vote" }
-  | { type: "game-start" };
+  | { type: "game-start" }
+  | { type: "forfeit" };
 
 interface MoveRow {
   moveNumber: number;
   senderId: string | null;
   payload: MovePayload;
   createdAt: string;
+}
+
+// Helper used by both the leaver (so it skips posting redundant forfeits
+// after a real outcome) and the watcher (so it can detect the opponent
+// bailing).
+function isForfeit(p: MovePayload): p is { type: "forfeit" } {
+  return typeof p === "object" && "type" in p && p.type === "forfeit";
 }
 
 const POLL_MS = 500;
@@ -140,17 +148,27 @@ export default function TicTacToeMultiplayer({
     [board],
   );
   const isDraw = !winner && cellMoves.length === 9;
-  const gameOver = !!winner || isDraw;
 
-  const turnSeat = cellMoves.length % 2;
-  const myMark: "X" | "O" = mySeat === 0 ? "X" : "O";
-  const myTurn = !gameOver && turnSeat === mySeat;
+  // Forfeit detection — first row in the move log whose payload is a
+  // forfeit signal. Whichever player posted it has bailed.
+  const forfeit = useMemo(
+    () => moves.find((m) => isForfeit(m.payload)) ?? null,
+    [moves],
+  );
 
   const opponent = participants.find((p) => p.seat !== mySeat);
   const me = participants.find((p) => p.seat === mySeat);
   const opponentName = opponent?.name ?? "Opponent";
   const myUserId = me?.userId ?? null;
   const opponentUserId = opponent?.userId ?? null;
+
+  const opponentForfeited = !!forfeit && forfeit.senderId === opponentUserId;
+  const iForfeited = !!forfeit && forfeit.senderId === myUserId;
+  const gameOver = !!winner || isDraw || !!forfeit;
+
+  const turnSeat = cellMoves.length % 2;
+  const myMark: "X" | "O" = mySeat === 0 ? "X" : "O";
+  const myTurn = !gameOver && turnSeat === mySeat;
 
   // ---- Overlay reveal --------------------------------------------------
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,31 +242,56 @@ export default function TicTacToeMultiplayer({
   };
 
   // ---- Leave room ------------------------------------------------------
+  // If the game isn't already decided, we post a forfeit move FIRST so
+  // the opponent's polling picks it up and renders a "win by forfeit"
+  // overlay instead of staring at a frozen board wondering where we
+  // went. Then we drop our participant row and navigate.
   const handleLeave = async () => {
     if (leaving) return;
     setLeaving(true);
     try {
+      if (!gameOver) {
+        // Server is participant-checked + game-must-be-running; this
+        // post needs to happen BEFORE the gameRoom DELETE which flips
+        // isFull back to false.
+        await fetch(`/api/games/${gameId}/multiplayer/moves`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            payload: { type: "forfeit" },
+          }),
+        });
+      }
       await fetch(`/api/games/${gameId}/multiplayer/gameRoom`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomID: sessionId }),
       });
-    } catch {}
+    } catch {
+      /* even if either request fails, take the user to the lobby */
+    }
     router.push(`/games/${gameId}/lobby`);
   };
 
   const status = (() => {
+    if (opponentForfeited) return `${opponentName} bailed.`;
+    if (iForfeited) return "You forfeited.";
     if (winner) return winner === myMark ? "You win." : "You lose.";
     if (isDraw) return "Draw.";
     if (myTurn) return "Your turn.";
     return `${opponentName}'s turn...`;
   })();
 
-  const outcome = winner
+  const outcome: "win" | "loss" | "draw" = winner
     ? winner === myMark
-      ? ("win" as const)
-      : ("loss" as const)
-    : ("draw" as const);
+      ? "win"
+      : "loss"
+    : opponentForfeited
+      ? "win"
+      : iForfeited
+        ? "loss"
+        : "draw";
 
   return (
     <div className="relative flex flex-col items-center gap-4">
@@ -326,9 +369,24 @@ export default function TicTacToeMultiplayer({
         <MultiplayerEndOverlay
           outcome={outcome}
           opponentName={opponentName}
+          headline={
+            opponentForfeited
+              ? "WIN BY FORFEIT"
+              : iForfeited
+                ? "FORFEITED"
+                : undefined
+          }
+          subtitle={
+            opponentForfeited
+              ? `${opponentName} bailed out. The match is yours.`
+              : iForfeited
+                ? "You left the match — counted as a loss."
+                : undefined
+          }
           iVoted={rematch.iVoted}
           opponentVoted={rematch.opponentVoted}
-          opponentPresent={rematch.opponentPresent}
+          // After a forfeit, rematch isn't possible — opponent is gone.
+          opponentPresent={rematch.opponentPresent && !forfeit}
           voting={rematch.voting || leaving}
           errorMessage={rematch.voteError}
           onRematch={rematch.requestRematch}

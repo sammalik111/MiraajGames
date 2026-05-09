@@ -431,6 +431,22 @@ export const gameParticipants = pgTable(
   ],
 );
 
+// -----------------------------------------------------------------------------
+// Feedback Table
+// -----------------------------------------------------------------------------
+
+export const feedbackTable = pgTable("feedback_table", {
+  id: text("id").primaryKey(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 
 // -----------------------------------------------------------------------------
@@ -454,6 +470,8 @@ export type GameSession = typeof gameSessions.$inferSelect;
 export type NewGameSession = typeof gameSessions.$inferInsert;
 export type GameMove = typeof gameMoves.$inferSelect;
 export type NewGameMove = typeof gameMoves.$inferInsert;
+export type Feedback = typeof feedbackTable.$inferSelect;
+export type NewFeedback = typeof feedbackTable.$inferInsert;
 
 // Shared move-payload types. Server doesn't care about these — only client
 // game components interpret them. Add new entries as you bring more games

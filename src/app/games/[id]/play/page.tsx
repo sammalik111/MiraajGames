@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { games } from "@/data/gameData";
+import { useRouter } from "next/navigation";
 import TicTacToeMultiplayer from "@/components/games/multiplayer/TicTacToeMultiplayer";
 import BattleshipMultiplayer from "@/components/games/multiplayer/BattleshipMultiplayer";
 import PoolMultiplayer from "@/components/games/multiplayer/PoolMultiplayer";
@@ -28,6 +29,7 @@ interface RoomSnapshot {
 }
 
 export default function PlayPage() {
+  const router = useRouter();
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
   const { userId, authed, loading: authLoading } = useAuth();
@@ -41,9 +43,36 @@ export default function PlayPage() {
 
   // Pull the current room state once on mount so we know our seat number
   // and can verify the user is actually in this session.
+
+  // Page-level leave handler. The MP child component has its own leave
+  // button (which posts a forfeit before bailing) — this top-level one
+  // is the escape hatch from error states (e.g. "Cabinet not found")
+  // where the MP component never mounted.
+  const handleLeave = async () => {
+    if (!snapshot) {
+      router.push("/");
+      return;
+    }
+    const res = await fetch(
+      `/api/games/${encodeURIComponent(params.id)}/multiplayer/gameRoom`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomID: snapshot.room.id }),
+      },
+    );
+    if (!res.ok) {
+      const raw = await res.text();
+      setError(`Leave failed (${res.status}): ${raw.slice(0, 200)}`);
+      return;
+    }
+    router.push("/");
+  };
+
   useEffect(() => {
     if (!authed || !sessionId) return;
     let cancelled = false;
+    
     (async () => {
       try {
         const res = await fetch(
@@ -74,6 +103,7 @@ export default function PlayPage() {
     };
   }, [authed, sessionId, params.id]);
 
+  
   if (!game) return notFound("Cabinet not found.");
   if (!sessionId) return notFound("Missing session.");
   if (authLoading) return loading("Authenticating...");
@@ -84,6 +114,12 @@ export default function PlayPage() {
   // Find my seat in the room snapshot.
   const me = snapshot.participants.find((p) => p.userId === userId);
   if (!me) return notFound("You're not in this room.");
+
+  // We no longer gate the page on "opponent present" — the MP component
+  // (TicTacToe / Battleship / Pool) detects opponent forfeit via the
+  // shared move log and renders its own "win by forfeit" overlay.
+  // Gating here would (a) require state-setting during render and (b)
+  // duplicate the in-game flow.
 
   // ---- Pick the multiplayer component for this game id -----------------
   const renderGame = () => {
@@ -143,13 +179,24 @@ export default function PlayPage() {
         <div className="mt-6 border border-[color:var(--border-strong)] bg-[color:var(--surface-1)] p-6">
           {renderGame()}
         </div>
+
+        <br></br>
+
+        {/* LEAVE BUTTON */}
+        <button
+          onClick={handleLeave}
+          className="font-mono text-xs uppercase tracking-[0.2em] px-4 py-3 border border-[color:var(--neon-magenta)] text-[color:var(--neon-magenta)] hover:ring-magenta transition"
+        >
+          <span>Leave Game</span>
+          <span className="text-[color:var(--fg-muted)]">→</span>
+        </button>
       </main>
     </div>
   );
 }
 
 // ---- Tiny shared helpers ---------------------------------------------
-function notFound(msg: string) {
+function notFound(msg: string, handleLeave: (() => Promise<void>) | null = null ) {
   return (
     <div className="min-h-screen text-[color:var(--fg)]">
       <Navbar />
@@ -158,6 +205,7 @@ function notFound(msg: string) {
           ✕ {msg}
         </p>
         <Link
+          onClick={handleLeave || undefined}
           href="/"
           className="mt-8 inline-flex font-mono text-xs uppercase tracking-[0.2em] px-5 py-3 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
         >

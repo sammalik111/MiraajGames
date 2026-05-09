@@ -31,11 +31,21 @@ CREATE TABLE "conversations" (
 	"last_message_sender_id" text
 );
 --> statement-breakpoint
+CREATE TABLE "feedback_table" (
+	"id" text PRIMARY KEY NOT NULL,
+	"created_by" text NOT NULL,
+	"email" text NOT NULL,
+	"subject" text NOT NULL,
+	"message" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "game_moves" (
 	"id" text PRIMARY KEY NOT NULL,
 	"game_session_id" text NOT NULL,
 	"sender_id" text,
-	"content" text NOT NULL,
+	"move_number" integer NOT NULL,
+	"payload" jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -128,6 +138,7 @@ ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participant
 ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participants_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_last_message_sender_id_users_id_fk" FOREIGN KEY ("last_message_sender_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "feedback_table" ADD CONSTRAINT "feedback_table_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "game_moves" ADD CONSTRAINT "game_moves_game_session_id_game_sessions_id_fk" FOREIGN KEY ("game_session_id") REFERENCES "public"."game_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "game_moves" ADD CONSTRAINT "game_moves_sender_id_users_id_fk" FOREIGN KEY ("sender_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "game_participants" ADD CONSTRAINT "game_participants_game_session_id_game_sessions_id_fk" FOREIGN KEY ("game_session_id") REFERENCES "public"."game_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -145,6 +156,7 @@ ALTER TABLE "user_friends" ADD CONSTRAINT "user_friends_friend_id_users_id_fk" F
 CREATE INDEX "best_scores_leaderboard_idx" ON "best_scores_for_game" USING btree ("game_id","score" DESC,"achieved_at");--> statement-breakpoint
 CREATE INDEX "best_scores_user_idx" ON "best_scores_for_game" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "conv_participants_user_idx" ON "conversation_participants" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "game_moves_session_seq_idx" ON "game_moves" USING btree ("game_session_id","move_number");--> statement-breakpoint
 CREATE INDEX "game_participants_user_idx" ON "game_participants" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "game_runs_user_game_idx" ON "game_runs" USING btree ("user_id","game_id");--> statement-breakpoint
 CREATE INDEX "game_scores_game_recent_idx" ON "game_scores" USING btree ("game_id","achieved_at" DESC);--> statement-breakpoint
