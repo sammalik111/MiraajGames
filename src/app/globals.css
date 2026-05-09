@@ -62,6 +62,142 @@
   color-scheme: dark;
 }
 
+/* ============================================================
+   THEME PALETTES (six alt themes; cyberpunk = :root by default)
+   ============================================================ */
+
+/* ---- Solarpunk: warm greens, honey, organic ---- */
+[data-theme="solarpunk"] {
+  --neon-cyan: #4a9b5d; --neon-magenta: #c87c4e; --neon-yellow: #d4a017; --neon-lime: #6fb87a;
+  --bg: #faf6e8; --bg-grad-1: rgba(74,155,93,0.06); --bg-grad-2: rgba(212,160,23,0.05); --bg-grad-3: #efe7c8; --grid-line: transparent;
+  --fg: #2b3a26; --fg-muted: #6e7960; --surface: #ffffff; --surface-2: #f3eed4;
+  --border: rgba(60,80,40,0.18); --border-strong: rgba(60,80,40,0.4);
+  --selection-bg: rgba(74,155,93,0.3); --selection-fg: #2b3a26;
+  --scrollbar-track: rgba(60,80,40,0.08); --scrollbar-thumb: var(--neon-cyan);
+  --placeholder: rgba(60,80,40,0.45);
+  color-scheme: light;
+}
+[data-theme="solarpunk"].dark {
+  --neon-cyan: #6fb87a; --neon-magenta: #e89867; --neon-yellow: #f0b945; --neon-lime: #9bd9a0;
+  --bg: #0e1f12; --bg-grad-1: rgba(155,217,160,0.06); --bg-grad-2: rgba(232,152,103,0.05); --bg-grad-3: #081108;
+  --fg: #e6efd5; --fg-muted: #95a589; --surface: #142a18; --surface-2: #1a3621;
+  --border: rgba(155,217,160,0.18); --border-strong: rgba(155,217,160,0.4);
+  --selection-bg: rgba(155,217,160,0.3); --selection-fg: #0e1f12;
+  --scrollbar-track: rgba(155,217,160,0.06); --scrollbar-thumb: var(--neon-cyan);
+  --placeholder: rgba(230,239,213,0.5);
+  color-scheme: dark;
+}
+
+/* ---- Minimal: clean, single-accent, hover-reveal chrome ---- */
+[data-theme="minimal"] {
+  --neon-cyan: #1a73e8; --neon-magenta: #1a73e8; --neon-yellow: #1a73e8; --neon-lime: #1a73e8;
+  --bg: #ffffff; --bg-grad-1: transparent; --bg-grad-2: transparent; --bg-grad-3: #ffffff; --grid-line: transparent;
+  --fg: #18181b; --fg-muted: #71717a; --surface: #ffffff; --surface-2: #f4f4f5;
+  --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.32);
+  --selection-bg: rgba(26,115,232,0.18); --selection-fg: #18181b;
+  --scrollbar-track: rgba(0,0,0,0.04); --scrollbar-thumb: rgba(0,0,0,0.3);
+  --placeholder: rgba(0,0,0,0.4);
+  color-scheme: light;
+}
+[data-theme="minimal"].dark {
+  --neon-cyan: #60a5fa; --neon-magenta: #60a5fa; --neon-yellow: #60a5fa; --neon-lime: #60a5fa;
+  --bg: #0a0a0a; --bg-grad-1: transparent; --bg-grad-2: transparent; --bg-grad-3: #0a0a0a; --grid-line: transparent;
+  --fg: #fafafa; --fg-muted: #a1a1aa; --surface: #18181b; --surface-2: #27272a;
+  --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.28);
+  --selection-bg: rgba(96,165,250,0.25); --selection-fg: #fafafa;
+  --scrollbar-track: rgba(255,255,255,0.04); --scrollbar-thumb: rgba(255,255,255,0.25);
+  --placeholder: rgba(255,255,255,0.4);
+  color-scheme: dark;
+}
+
+/* ---- City at Night: navy, streetlamp amber ---- */
+[data-theme="city"] {
+  --neon-cyan: #5b8def; --neon-magenta: #ff6b9d; --neon-yellow: #ffaa3b; --neon-lime: #ffba66;
+  --bg: #f3ebe2; --bg-grad-1: rgba(91,141,239,0.06); --bg-grad-2: rgba(255,170,59,0.05); --bg-grad-3: #e8ddd0; --grid-line: rgba(45,31,58,0.04);
+  --fg: #2d1f3a; --fg-muted: #6c5a78; --surface: #ffffff; --surface-2: #f8f0e6;
+  --border: rgba(45,31,58,0.16); --border-strong: rgba(45,31,58,0.36);
+  --selection-bg: rgba(91,141,239,0.22); --selection-fg: #2d1f3a;
+  --scrollbar-track: rgba(45,31,58,0.06); --scrollbar-thumb: var(--neon-yellow);
+  --placeholder: rgba(45,31,58,0.45);
+  color-scheme: light;
+}
+[data-theme="city"].dark {
+  --neon-cyan: #6fa3ff; --neon-magenta: #ff79c6; --neon-yellow: #ffba66; --neon-lime: #ffd09b;
+  --bg: #0a1428; --bg-grad-1: rgba(255,186,102,0.07); --bg-grad-2: rgba(111,163,255,0.05); --bg-grad-3: #050b1a; --grid-line: rgba(255,200,150,0.04);
+  --fg: #e6dccf; --fg-muted: #8a8499; --surface: #11203d; --surface-2: #162a4f;
+  --border: rgba(255,200,150,0.16); --border-strong: rgba(255,200,150,0.38);
+  --selection-bg: rgba(255,186,102,0.25); --selection-fg: #0a1428;
+  --scrollbar-track: rgba(255,200,150,0.06); --scrollbar-thumb: var(--neon-yellow);
+  --placeholder: rgba(230,220,207,0.5);
+  color-scheme: dark;
+}
+
+/* ---- Vaporwave: pink + cyan retrofuture ---- */
+[data-theme="vaporwave"] {
+  --neon-cyan: #00b8d4; --neon-magenta: #d6418a; --neon-yellow: #f9a825; --neon-lime: #8e44ad;
+  --bg: #fbe4f5; --bg-grad-1: rgba(255,110,199,0.10); --bg-grad-2: rgba(0,230,255,0.10); --bg-grad-3: #f0d6ff; --grid-line: rgba(120,40,120,0.06);
+  --fg: #2a0a40; --fg-muted: #6a3a8a; --surface: #ffffff; --surface-2: #fdebfb;
+  --border: rgba(120,40,120,0.18); --border-strong: rgba(120,40,120,0.42);
+  --selection-bg: rgba(255,110,199,0.28); --selection-fg: #2a0a40;
+  --scrollbar-track: rgba(120,40,120,0.06); --scrollbar-thumb: var(--neon-magenta);
+  --placeholder: rgba(42,10,64,0.45);
+  color-scheme: light;
+}
+[data-theme="vaporwave"].dark {
+  --neon-cyan: #00e6ff; --neon-magenta: #ff6ec7; --neon-yellow: #fff176; --neon-lime: #b388ff;
+  --bg: #1a0832; --bg-grad-1: rgba(255,110,199,0.10); --bg-grad-2: rgba(0,230,255,0.10); --bg-grad-3: #0d0420; --grid-line: rgba(255,110,199,0.05);
+  --fg: #fdebfb; --fg-muted: #c8a8d8; --surface: #2a1248; --surface-2: #361858;
+  --border: rgba(255,110,199,0.22); --border-strong: rgba(255,110,199,0.5);
+  --selection-bg: rgba(0,230,255,0.32); --selection-fg: #1a0832;
+  --scrollbar-track: rgba(255,110,199,0.08); --scrollbar-thumb: var(--neon-magenta);
+  --placeholder: rgba(253,235,251,0.45);
+  color-scheme: dark;
+}
+
+/* ---- Terminal: pure mono, single-color CRT ---- */
+[data-theme="terminal"] {
+  --neon-cyan: #006600; --neon-magenta: #006600; --neon-yellow: #006600; --neon-lime: #006600;
+  --bg: #f4fff4; --bg-grad-1: transparent; --bg-grad-2: transparent; --bg-grad-3: #e8f5e8; --grid-line: transparent;
+  --fg: #003300; --fg-muted: #336633; --surface: #ffffff; --surface-2: #e8f5e8;
+  --border: rgba(0,80,0,0.25); --border-strong: rgba(0,80,0,0.55);
+  --selection-bg: rgba(0,170,0,0.28); --selection-fg: #003300;
+  --scrollbar-track: rgba(0,80,0,0.06); --scrollbar-thumb: var(--neon-cyan);
+  --placeholder: rgba(0,51,0,0.5);
+  color-scheme: light;
+}
+[data-theme="terminal"].dark {
+  --neon-cyan: #33ff33; --neon-magenta: #33ff33; --neon-yellow: #aaffaa; --neon-lime: #66ff66;
+  --bg: #000000; --bg-grad-1: transparent; --bg-grad-2: transparent; --bg-grad-3: #050505; --grid-line: transparent;
+  --fg: #33ff33; --fg-muted: #228822; --surface: #050505; --surface-2: #0a0f0a;
+  --border: rgba(51,255,51,0.30); --border-strong: rgba(51,255,51,0.65);
+  --selection-bg: rgba(51,255,51,0.30); --selection-fg: #000000;
+  --scrollbar-track: rgba(51,255,51,0.06); --scrollbar-thumb: var(--neon-cyan);
+  --placeholder: rgba(51,255,51,0.4);
+  color-scheme: dark;
+}
+
+/* ---- Pastel: soft cozy ---- */
+[data-theme="pastel"] {
+  --neon-cyan: #a8c8e8; --neon-magenta: #f4a8c1; --neon-yellow: #f0d49a; --neon-lime: #b8d8b8;
+  --bg: #fff5f7; --bg-grad-1: rgba(244,168,193,0.12); --bg-grad-2: rgba(168,200,232,0.10); --bg-grad-3: #fdebef; --grid-line: transparent;
+  --fg: #5a3a4a; --fg-muted: #8a6a7a; --surface: #ffffff; --surface-2: #fdf0f4;
+  --border: rgba(150,100,120,0.18); --border-strong: rgba(150,100,120,0.4);
+  --selection-bg: rgba(244,168,193,0.28); --selection-fg: #5a3a4a;
+  --scrollbar-track: rgba(150,100,120,0.06); --scrollbar-thumb: var(--neon-magenta);
+  --placeholder: rgba(90,58,74,0.5);
+  color-scheme: light;
+}
+[data-theme="pastel"].dark {
+  --neon-cyan: #b8d8f0; --neon-magenta: #f8c8d8; --neon-yellow: #f0d8a8; --neon-lime: #c8e0c8;
+  --bg: #2a1828; --bg-grad-1: rgba(248,200,216,0.08); --bg-grad-2: rgba(184,216,240,0.06); --bg-grad-3: #1a0e18; --grid-line: transparent;
+  --fg: #f8e8ec; --fg-muted: #c8a8b8; --surface: #3a2438; --surface-2: #4a2e48;
+  --border: rgba(248,200,216,0.18); --border-strong: rgba(248,200,216,0.42);
+  --selection-bg: rgba(248,200,216,0.30); --selection-fg: #2a1828;
+  --scrollbar-track: rgba(248,200,216,0.08); --scrollbar-thumb: var(--neon-magenta);
+  --placeholder: rgba(248,232,236,0.5);
+  color-scheme: dark;
+}
+
 * { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; min-height: 100%; }
@@ -219,6 +355,767 @@ body::-webkit-scrollbar-thumb {
     rgba(255, 255, 255, 0.02) 3px 4px
   );
   mix-blend-mode: overlay;
+}
+/* Scanlines are a cyberpunk-only flavor — silence them on the other themes. */
+[data-theme="solarpunk"] .scanline-overlay::after,
+[data-theme="minimal"] .scanline-overlay::after,
+[data-theme="city"] .scanline-overlay::after { display: none; }
+
+/* The terminal-cursor blink is also cyberpunk-flavored. */
+[data-theme="solarpunk"] .blink,
+[data-theme="minimal"] .blink,
+[data-theme="city"] .blink { animation: none; opacity: 1; }
+
+/* =====================================================================
+   STRUCTURAL THEME DIFFERENTIATION
+   Beyond color/corner — these rules give each theme a distinct
+   *behaviour*: hover transforms, decorative pseudo-elements, heading
+   accents, animation timing. Components don't know any of this exists;
+   the rules attach themselves via [data-theme] selectors.
+   =====================================================================*/
+
+/* ---- Cyberpunk: corner brackets + glitch hover -------------------- */
+/* Tiny corner-bracket marks on hud panels. CRT-overlay flavor. */
+[data-theme="cyberpunk"] .hud-panel-inner {
+  position: relative;
+}
+[data-theme="cyberpunk"] .hud-panel-inner::before,
+[data-theme="cyberpunk"] .hud-panel-inner::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--neon-cyan);
+  pointer-events: none;
+  opacity: 0.55;
+}
+[data-theme="cyberpunk"] .hud-panel-inner::before {
+  top: 4px;
+  left: 4px;
+  border-right: 0;
+  border-bottom: 0;
+}
+[data-theme="cyberpunk"] .hud-panel-inner::after {
+  bottom: 4px;
+  right: 4px;
+  border-left: 0;
+  border-top: 0;
+}
+/* Subtle 1px-skew shimmer on accent button hover — like a CRT artifact. */
+[data-theme="cyberpunk"] button[class*="bg-[color:var(--neon-cyan)]"]:hover {
+  transform: skewX(-0.5deg);
+  transition: transform 120ms ease;
+}
+[data-theme="cyberpunk"] button:active { transform: translateY(1px); }
+
+/* ---- Solarpunk: serif headings, leaf marks, gentle lift ----------- */
+[data-theme="solarpunk"] body {
+  background:
+    radial-gradient(ellipse 80% 50% at 85% 0%, rgba(212, 160, 23, 0.18), transparent 60%),
+    radial-gradient(ellipse 50% 30% at 0% 100%, rgba(74, 155, 93, 0.12), transparent 70%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-grad-3) 100%);
+}
+[data-theme="solarpunk"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 6px 18px -10px rgba(43, 58, 38, 0.25);
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+[data-theme="solarpunk"] .hud-panel:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 10px 24px -10px rgba(43, 58, 38, 0.30);
+}
+[data-theme="solarpunk"] .hud-panel-inner {
+  background: var(--surface);
+  border-radius: 12px;
+}
+[data-theme="solarpunk"] h1.font-display,
+[data-theme="solarpunk"] h2.font-display {
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+[data-theme="solarpunk"] h2.font-display::before,
+[data-theme="solarpunk"] h3.font-display::before {
+  content: "❀ ";
+  color: var(--neon-yellow);
+  opacity: 0.7;
+  font-size: 0.7em;
+  vertical-align: 0.15em;
+}
+[data-theme="solarpunk"] button:hover {
+  transform: translateY(-1px);
+  transition: transform 180ms ease;
+}
+
+/* ---- Minimal: hover-reveal borders, dense, no chrome -------------- */
+[data-theme="minimal"] body {
+  background: var(--bg);
+}
+[data-theme="minimal"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition: border-color 120ms ease;
+}
+[data-theme="minimal"] .hud-panel:hover {
+  border-color: var(--border);
+}
+[data-theme="minimal"] .hud-panel-inner {
+  background: var(--surface);
+  border-radius: 6px;
+}
+[data-theme="minimal"] body { line-height: 1.45; letter-spacing: -0.005em; }
+[data-theme="minimal"] h1.font-display,
+[data-theme="minimal"] h2.font-display {
+  font-family: var(--font-geist-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+[data-theme="minimal"] button { transition: filter 80ms ease, background-color 80ms ease; }
+[data-theme="minimal"] button:hover { filter: brightness(0.92); }
+[data-theme="minimal"] button:active { filter: brightness(0.85); }
+
+/* ---- City at Night: pulsing ambient breath, lamp marks ------------ */
+@keyframes cityBreath {
+  0%, 100% { box-shadow: 0 8px 32px -10px rgba(255, 186, 102, 0.10); }
+  50%      { box-shadow: 0 8px 32px -10px rgba(255, 186, 102, 0.22); }
+}
+[data-theme="city"].dark body {
+  background:
+    radial-gradient(circle 1.5px at 20% 78%, rgba(255, 200, 120, 0.5), transparent),
+    radial-gradient(circle 1.5px at 47% 76%, rgba(255, 200, 130, 0.45), transparent),
+    radial-gradient(circle 1.5px at 78% 78%, rgba(255, 200, 120, 0.4), transparent),
+    radial-gradient(ellipse 80% 30% at 50% 100%, rgba(0, 0, 0, 0.4), transparent 70%),
+    linear-gradient(180deg, var(--bg) 0%, #07101f 100%);
+  background-attachment: fixed;
+}
+[data-theme="city"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+[data-theme="city"] .hud-panel-inner {
+  background: var(--surface);
+  border-radius: 9px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: box-shadow 320ms ease, border-color 200ms ease;
+}
+[data-theme="city"].dark .hud-panel-inner {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  animation: cityBreath 6s ease-in-out infinite;
+}
+[data-theme="city"] .hud-panel:hover {
+  border-color: var(--neon-yellow);
+}
+[data-theme="city"] .hud-panel:hover .hud-panel-inner {
+  box-shadow: 0 8px 32px -8px rgba(255, 186, 102, 0.35);
+}
+[data-theme="city"] h2.font-display::before,
+[data-theme="city"] h3.font-display::before {
+  content: "✦ ";
+  color: var(--neon-yellow);
+  opacity: 0.85;
+  font-size: 0.65em;
+  vertical-align: 0.15em;
+}
+[data-theme="city"].dark .font-display {
+  text-shadow: 0 0 16px rgba(255, 186, 102, 0.18);
+}
+[data-theme="city"] button[class*="bg-[color:var(--neon-cyan)]"] {
+  background: var(--neon-yellow) !important;
+  color: var(--bg) !important;
+}
+[data-theme="city"] button[class*="bg-[color:var(--neon-cyan)]"]:hover {
+  box-shadow: 0 0 24px -4px var(--neon-yellow);
+}
+[data-theme="city"] button:active {
+  box-shadow: 0 0 24px -4px var(--neon-yellow), inset 0 0 12px -4px var(--neon-yellow);
+}
+
+/* ---- Section divider styles per theme ---------------------------- */
+[data-theme="solarpunk"] hr,
+[data-theme="solarpunk"] [class*="border-b border-[color:var(--border)]"] {
+  border-bottom-style: dotted;
+}
+
+/* ---- Padding density per theme ----------------------------------- */
+[data-theme="solarpunk"] .hud-panel-inner[class*="p-6"] { padding: 2rem; }
+[data-theme="minimal"] .hud-panel-inner[class*="p-6"] { padding: 1.25rem; }
+[data-theme="pastel"] .hud-panel-inner[class*="p-6"] { padding: 2rem; }
+
+/* =====================================================================
+   VAPORWAVE — italics, gradient bg, chrome buttons
+   ===================================================================*/
+[data-theme="vaporwave"] body {
+  background:
+    radial-gradient(ellipse 60% 80% at 50% 100%, rgba(255, 110, 199, 0.22), transparent 65%),
+    radial-gradient(ellipse 70% 60% at 50% 0%, rgba(0, 230, 255, 0.18), transparent 60%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-grad-3) 100%);
+  background-attachment: fixed;
+}
+[data-theme="vaporwave"] h1,
+[data-theme="vaporwave"] h2,
+[data-theme="vaporwave"] h3,
+[data-theme="vaporwave"] h4,
+[data-theme="vaporwave"] .font-display {
+  font-style: italic;
+  letter-spacing: 0.06em;
+  text-shadow:
+    2px 2px 0 var(--neon-magenta),
+    -1px -1px 0 var(--neon-cyan);
+}
+[data-theme="vaporwave"].dark .font-display {
+  text-shadow:
+    3px 3px 0 var(--neon-magenta),
+    -1px -1px 0 var(--neon-cyan),
+    0 0 20px rgba(255, 110, 199, 0.4);
+}
+[data-theme="vaporwave"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 2px solid var(--neon-magenta);
+  box-shadow:
+    inset 0 0 0 1px var(--neon-cyan),
+    6px 6px 0 var(--neon-cyan);
+}
+[data-theme="vaporwave"] .hud-panel-inner {
+  background: var(--surface);
+  border-radius: 0;
+}
+[data-theme="vaporwave"] .hud-panel:hover {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    inset 0 0 0 1px var(--neon-cyan),
+    8px 8px 0 var(--neon-cyan);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+[data-theme="vaporwave"] button[class*="bg-[color:var(--neon-cyan)]"] {
+  background: linear-gradient(180deg, var(--neon-magenta), var(--neon-cyan)) !important;
+  color: white !important;
+  font-style: italic;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--neon-cyan);
+}
+[data-theme="vaporwave"] button[class*="bg-[color:var(--neon-cyan)]"]:hover {
+  filter: brightness(1.15) saturate(1.2);
+}
+
+/* =====================================================================
+   TERMINAL — pure mono, blinking everywhere, ASCII borders
+   ===================================================================*/
+[data-theme="terminal"] body {
+  font-family: var(--font-mono-tech), "JetBrains Mono", ui-monospace, monospace;
+}
+[data-theme="terminal"] *,
+[data-theme="terminal"] .font-display,
+[data-theme="terminal"] h1,
+[data-theme="terminal"] h2,
+[data-theme="terminal"] h3 {
+  font-family: var(--font-term), var(--font-mono-tech), ui-monospace, monospace !important;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+[data-theme="terminal"] p,
+[data-theme="terminal"] li,
+[data-theme="terminal"] span:not([class*="text-"]),
+[data-theme="terminal"] label,
+[data-theme="terminal"] input,
+[data-theme="terminal"] textarea {
+  text-transform: none;
+}
+/* CRT scanline overlay across the WHOLE page on terminal dark */
+[data-theme="terminal"].dark body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0 2px,
+    rgba(0, 0, 0, 0.18) 2px 3px
+  );
+  mix-blend-mode: multiply;
+}
+/* Terminal-flavored cursor blink — show a `_` after every heading */
+[data-theme="terminal"] h1::after,
+[data-theme="terminal"] h2::after {
+  content: "_";
+  animation: blink 1.05s steps(2, end) infinite;
+  margin-left: 0.2em;
+  color: var(--neon-cyan);
+}
+[data-theme="terminal"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+}
+[data-theme="terminal"] .hud-panel-inner {
+  background: var(--surface);
+  border-radius: 0;
+}
+[data-theme="terminal"] .hud-panel:hover {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 1px var(--neon-cyan);
+}
+/* Terminal buttons read like `[ENTER]` keypresses */
+[data-theme="terminal"] button {
+  font-family: var(--font-term), monospace !important;
+  letter-spacing: 0.05em;
+  border-radius: 0;
+}
+[data-theme="terminal"] button[class*="bg-[color:var(--neon-cyan)]"] {
+  background: var(--neon-cyan) !important;
+  color: var(--bg) !important;
+  border: 1px solid var(--neon-cyan);
+  position: relative;
+}
+[data-theme="terminal"] button[class*="bg-[color:var(--neon-cyan)]"]:hover {
+  background: var(--bg) !important;
+  color: var(--neon-cyan) !important;
+}
+[data-theme="terminal"].dark button[class*="bg-[color:var(--neon-cyan)]"] {
+  text-shadow: 0 0 8px rgba(51, 255, 51, 0.6);
+}
+
+/* =====================================================================
+   PASTEL — fully rounded, gentle float, soft shadows
+   ===================================================================*/
+@keyframes pastelFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+[data-theme="pastel"] body {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(244, 168, 193, 0.18), transparent 65%),
+    radial-gradient(ellipse 80% 60% at 80% 100%, rgba(168, 200, 232, 0.16), transparent 65%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-grad-3) 100%);
+}
+[data-theme="pastel"] h1.font-display,
+[data-theme="pastel"] h2.font-display,
+[data-theme="pastel"] h3.font-display {
+  font-family: ui-serif, Georgia, "Iowan Old Style", "Apple Garamond", serif;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+[data-theme="pastel"] .hud-panel {
+  background: transparent;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 8px 24px -10px rgba(150, 100, 120, 0.20);
+  transition: transform 240ms ease, box-shadow 240ms ease;
+}
+[data-theme="pastel"] .hud-panel-inner {
+  background: var(--surface);
+  border-radius: 17px;
+}
+[data-theme="pastel"] .hud-panel:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 14px 32px -10px rgba(150, 100, 120, 0.32);
+}
+[data-theme="pastel"] button {
+  border-radius: 999px !important;
+}
+[data-theme="pastel"] button[class*="bg-[color:var(--neon-cyan)]"] {
+  background: linear-gradient(180deg, var(--neon-magenta), color-mix(in srgb, var(--neon-magenta) 70%, var(--neon-yellow))) !important;
+  color: var(--bg) !important;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+[data-theme="pastel"] [class*="border-[color:var(--border)]"]:not(button):not(.hud-panel-inner),
+[data-theme="pastel"] [class*="border-[color:var(--border-strong)]"]:not(button):not(.hud-panel-inner) {
+  border-radius: 12px;
+}
+[data-theme="pastel"] input,
+[data-theme="pastel"] textarea,
+[data-theme="pastel"] select {
+  border-radius: 14px !important;
+}
+/* Hud chips become full pills with soft pastel backgrounds */
+[data-theme="pastel"] .hud-chip {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--neon-magenta) 12%, var(--surface));
+  border-color: var(--border);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+/* Section headers get a small heart accent — ❤ replaces the ASCII brackets */
+[data-theme="pastel"] h2.font-display::before,
+[data-theme="pastel"] h3.font-display::before {
+  content: "♡ ";
+  color: var(--neon-magenta);
+  font-size: 0.85em;
+}
+
+/* Suppress cyberpunk's corner brackets on themes that should look clean */
+[data-theme="solarpunk"] .hud-panel-inner::before,
+[data-theme="solarpunk"] .hud-panel-inner::after,
+[data-theme="minimal"] .hud-panel-inner::before,
+[data-theme="minimal"] .hud-panel-inner::after,
+[data-theme="city"] .hud-panel-inner::before,
+[data-theme="city"] .hud-panel-inner::after,
+[data-theme="vaporwave"] .hud-panel-inner::before,
+[data-theme="vaporwave"] .hud-panel-inner::after,
+[data-theme="terminal"] .hud-panel-inner::before,
+[data-theme="terminal"] .hud-panel-inner::after,
+[data-theme="pastel"] .hud-panel-inner::before,
+[data-theme="pastel"] .hud-panel-inner::after { display: none; }
+
+/* Suppress scanline overlay on themes that don't use it */
+[data-theme="vaporwave"] .scanline-overlay::after,
+[data-theme="pastel"] .scanline-overlay::after { display: none; }
+/* Terminal KEEPS scanlines — actually amplifies them via body::after */
+
+/* =====================================================================
+   PER-THEME COMPONENT STYLES
+   Game cards (data-game-card), chat bubbles (data-chat-bubble), inputs,
+   composers, and other repeating elements all get per-theme treatment
+   so the entire app reshapes when a theme changes — not just the hud
+   panels. Using attribute selectors so no component code needs to know
+   what theme is active.
+   ===================================================================*/
+
+/* ---------- GAME CARDS ---------- */
+
+/* Cyberpunk default: clipped corners (already on .hud-clip via vars).
+   Add a subtle inner glow on hover. */
+[data-theme="cyberpunk"] [data-game-card]:hover .hud-panel-inner {
+  box-shadow: inset 0 0 0 1px var(--neon-cyan);
+}
+
+[data-theme="solarpunk"] [data-game-card] .hud-panel {
+  border-radius: 16px;
+}
+[data-theme="solarpunk"] [data-game-card] .hud-panel-inner {
+  border-radius: 15px;
+}
+[data-theme="solarpunk"] [data-game-card]:hover {
+  transform: translateY(-3px);
+  transition: transform 240ms ease;
+}
+
+[data-theme="minimal"] [data-game-card] .hud-panel-inner {
+  border-radius: 8px;
+}
+/* Minimal: card border invisible until card hover */
+[data-theme="minimal"] [data-game-card] .hud-panel {
+  border-color: transparent;
+}
+[data-theme="minimal"] [data-game-card]:hover .hud-panel {
+  border-color: var(--border-strong);
+}
+
+[data-theme="city"] [data-game-card] .hud-panel-inner {
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+[data-theme="city"] [data-game-card]:hover .hud-panel {
+  border-color: var(--neon-yellow);
+  box-shadow: 0 0 28px -6px var(--neon-yellow);
+}
+
+/* Vaporwave: thick 2px magenta border with cyan offset shadow */
+[data-theme="vaporwave"] [data-game-card] .hud-panel {
+  border: 2px solid var(--neon-magenta);
+  box-shadow: 5px 5px 0 var(--neon-cyan);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+[data-theme="vaporwave"] [data-game-card]:hover .hud-panel {
+  transform: translate(-3px, -3px);
+  box-shadow: 8px 8px 0 var(--neon-cyan);
+}
+[data-theme="vaporwave"] [data-game-card] h3 {
+  font-style: italic;
+}
+
+/* Terminal: square, monospace, ASCII corner brackets */
+[data-theme="terminal"] [data-game-card] .hud-panel {
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  position: relative;
+}
+[data-theme="terminal"] [data-game-card] .hud-panel::before {
+  content: "+";
+  position: absolute;
+  top: -8px;
+  left: -1px;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--neon-cyan);
+  font-family: var(--font-term), monospace;
+  font-size: 14px;
+}
+[data-theme="terminal"] [data-game-card] .hud-panel::after {
+  content: "+";
+  position: absolute;
+  bottom: -8px;
+  right: -1px;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--neon-cyan);
+  font-family: var(--font-term), monospace;
+  font-size: 14px;
+}
+[data-theme="terminal"] [data-game-card]:hover .hud-panel {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 1px var(--neon-cyan);
+}
+
+/* Pastel: heavily rounded, soft float on hover */
+[data-theme="pastel"] [data-game-card] .hud-panel {
+  border-radius: 22px;
+  border: 1px solid var(--border);
+}
+[data-theme="pastel"] [data-game-card] .hud-panel-inner {
+  border-radius: 21px;
+}
+[data-theme="pastel"] [data-game-card]:hover {
+  animation: pastelFloat 3s ease-in-out infinite;
+}
+[data-theme="pastel"] [data-game-card]:hover .hud-panel {
+  box-shadow: 0 16px 36px -10px rgba(244, 168, 193, 0.45);
+}
+
+/* ---------- CHAT BUBBLES ---------- */
+
+/* Cyberpunk: keep the angled clipPath that's already inline */
+
+/* Solarpunk: bigger rounded corners, paper-feel inset highlight */
+[data-theme="solarpunk"] [data-chat-bubble] {
+  border-radius: 16px !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset;
+}
+[data-theme="solarpunk"] [data-chat-bubble="mine"] {
+  border-radius: 16px 16px 4px 16px !important;
+}
+[data-theme="solarpunk"] [data-chat-bubble="theirs"] {
+  border-radius: 16px 16px 16px 4px !important;
+}
+
+/* Minimal: tight, hairline, no shadow */
+[data-theme="minimal"] [data-chat-bubble] {
+  border-radius: 8px !important;
+  border: 1px solid var(--border) !important;
+}
+[data-theme="minimal"] [data-chat-bubble="mine"] {
+  background: var(--neon-cyan) !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+/* City at Night: backdrop blur on theirs, warm amber on mine */
+[data-theme="city"] [data-chat-bubble] {
+  border-radius: 12px !important;
+}
+[data-theme="city"] [data-chat-bubble="theirs"] {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  background: color-mix(in srgb, var(--surface-2) 85%, transparent) !important;
+}
+[data-theme="city"] [data-chat-bubble="mine"] {
+  background: var(--neon-yellow) !important;
+  color: var(--bg) !important;
+}
+
+/* Vaporwave: italic, drop-shadow offset, gradient on mine */
+[data-theme="vaporwave"] [data-chat-bubble] {
+  border-radius: 0 !important;
+  font-style: italic;
+}
+[data-theme="vaporwave"] [data-chat-bubble="mine"] {
+  background: linear-gradient(180deg, var(--neon-magenta), var(--neon-cyan)) !important;
+  color: white !important;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
+  box-shadow: 3px 3px 0 var(--neon-cyan);
+}
+[data-theme="vaporwave"] [data-chat-bubble="theirs"] {
+  border: 2px solid var(--neon-magenta) !important;
+  box-shadow: 3px 3px 0 var(--neon-cyan);
+}
+
+/* Terminal: square with ASCII prompt prefix */
+[data-theme="terminal"] [data-chat-bubble] {
+  border-radius: 0 !important;
+  font-family: var(--font-term), monospace !important;
+  text-transform: none;
+  position: relative;
+  border: 1px solid var(--neon-cyan) !important;
+}
+[data-theme="terminal"] [data-chat-bubble="theirs"] {
+  background: var(--bg) !important;
+  color: var(--neon-cyan) !important;
+}
+[data-theme="terminal"] [data-chat-bubble="mine"] {
+  background: var(--neon-cyan) !important;
+  color: var(--bg) !important;
+}
+[data-theme="terminal"] [data-chat-bubble]::before {
+  content: "> ";
+  font-family: var(--font-term), monospace;
+  font-weight: bold;
+  margin-right: 0.2em;
+}
+[data-theme="terminal"] [data-chat-bubble="mine"]::before { content: "< "; }
+
+/* Pastel: very round, gradient pillows */
+[data-theme="pastel"] [data-chat-bubble] {
+  border-radius: 20px !important;
+}
+[data-theme="pastel"] [data-chat-bubble="mine"] {
+  background: linear-gradient(180deg, var(--neon-magenta), var(--neon-yellow)) !important;
+  color: #5a3a4a !important;
+  border-radius: 20px 20px 4px 20px !important;
+  box-shadow: 0 4px 12px -4px rgba(244, 168, 193, 0.4);
+}
+[data-theme="pastel"] [data-chat-bubble="theirs"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 20px 20px 20px 4px !important;
+  box-shadow: 0 2px 8px -2px rgba(150, 100, 120, 0.15);
+}
+
+/* ---------- FORM INPUTS / TEXTAREAS / SELECTS ---------- */
+
+/* Vaporwave: italic placeholder, magenta border bottom only */
+[data-theme="vaporwave"] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="vaporwave"] textarea,
+[data-theme="vaporwave"] select {
+  border: 0;
+  border-bottom: 2px solid var(--neon-magenta);
+  border-radius: 0 !important;
+  font-style: italic;
+  background: transparent !important;
+}
+[data-theme="vaporwave"] input:focus,
+[data-theme="vaporwave"] textarea:focus {
+  border-bottom-color: var(--neon-cyan);
+}
+
+/* Terminal: monospace, blinking caret-style cursor */
+[data-theme="terminal"] input,
+[data-theme="terminal"] textarea,
+[data-theme="terminal"] select {
+  font-family: var(--font-term), monospace !important;
+  border-radius: 0 !important;
+  caret-color: var(--neon-cyan);
+}
+[data-theme="terminal"] input::placeholder,
+[data-theme="terminal"] textarea::placeholder {
+  font-family: var(--font-term), monospace;
+}
+
+/* Pastel: very rounded, soft inner shadow */
+[data-theme="pastel"] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="pastel"] textarea,
+[data-theme="pastel"] select {
+  border-radius: 14px !important;
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+}
+[data-theme="pastel"] input:focus,
+[data-theme="pastel"] textarea:focus {
+  border-color: var(--neon-magenta) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--neon-magenta) 15%, transparent);
+}
+
+/* ---------- HUD CHIPS (small pills used everywhere) ---------- */
+
+[data-theme="vaporwave"] .hud-chip {
+  border-radius: 0;
+  border: 1px solid var(--neon-magenta);
+  font-style: italic;
+}
+[data-theme="terminal"] .hud-chip {
+  border-radius: 0;
+  font-family: var(--font-term), monospace !important;
+  text-transform: uppercase;
+  background: var(--bg);
+  border: 1px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+}
+[data-theme="terminal"] .hud-chip::before { content: "["; margin-right: 2px; }
+[data-theme="terminal"] .hud-chip::after { content: "]"; margin-left: 2px; }
+[data-theme="pastel"] .hud-chip {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--neon-magenta) 14%, var(--surface));
+  border-color: var(--border);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- AVATARS (.hud-clip primitive) ---------- */
+
+/* Avatars use .hud-clip — give it different shapes per theme. */
+[data-theme="solarpunk"] .hud-clip { border-radius: 50%; clip-path: none; }
+[data-theme="pastel"] .hud-clip { border-radius: 50%; clip-path: none; }
+[data-theme="city"] .hud-clip { border-radius: 12px; clip-path: none; }
+[data-theme="minimal"] .hud-clip { border-radius: 6px; clip-path: none; }
+[data-theme="vaporwave"] .hud-clip { border-radius: 0; clip-path: none; }
+[data-theme="terminal"] .hud-clip { border-radius: 0; clip-path: none; }
+
+/* ---------- BUTTONS BEYOND THE PRIMARY CTA ---------- */
+
+/* Bordered "ghost" buttons */
+[data-theme="vaporwave"] button[class*="border-[color:var(--border-strong)]"] {
+  border: 2px solid var(--neon-magenta);
+  font-style: italic;
+}
+[data-theme="terminal"] button[class*="border-[color:var(--border-strong)]"] {
+  border-radius: 0;
+  font-family: var(--font-term), monospace !important;
+}
+[data-theme="terminal"] button[class*="border-[color:var(--border-strong)]"]:hover {
+  background: var(--neon-cyan);
+  color: var(--bg);
+}
+[data-theme="pastel"] button[class*="border-[color:var(--border-strong)]"] {
+  border-radius: 999px !important;
+}
+
+/* ---------- NAV RAIL TWEAKS ---------- */
+
+/* Active-state spine on the rail uses a 2px bar — vaporwave gets a
+   chunky 4px gradient bar instead. Terminal turns it into a `>` cursor. */
+[data-theme="vaporwave"] aside[aria-label="Primary navigation"] a span:first-child {
+  width: 4px !important;
+  background: linear-gradient(180deg, var(--neon-magenta), var(--neon-cyan)) !important;
+}
+
+/* ---------- HEADER BARS / DIVIDERS ---------- */
+
+[data-theme="terminal"] [class*="border-b"][class*="border-[color:var(--border)]"] {
+  border-bottom-style: dashed;
+}
+[data-theme="vaporwave"] [class*="border-b"][class*="border-[color:var(--border)]"] {
+  border-image: linear-gradient(90deg, var(--neon-magenta), var(--neon-cyan)) 1;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

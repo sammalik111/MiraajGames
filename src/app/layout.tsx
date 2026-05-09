@@ -22,14 +22,32 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Runs before React hydrates — reads localStorage and applies .dark to <html>
-  // so the first paint matches the user's saved preference (no flash).
+  // Runs before React hydrates — reads BOTH the theme name and the
+  // light/dark mode from localStorage and applies them to <html> so
+  // the first paint matches the user's preference (no flash).
+  //   localStorage 'theme' : "cyberpunk" | "solarpunk" | "minimal" | "city"
+  //   localStorage 'mode'  : "light" | "dark"
+  // Backward-compat: older deployments stored "light"/"dark" under the
+  // 'theme' key. We detect that and migrate it to 'mode'.
   const themeInit = `
     (function () {
       try {
-        var saved = localStorage.getItem('theme');
+        var THEMES = ['cyberpunk', 'solarpunk', 'minimal', 'city', 'vaporwave', 'terminal', 'pastel'];
+        var savedTheme = localStorage.getItem('theme');
+        var savedMode = localStorage.getItem('mode');
+        // Migrate old format: theme key holding 'light'/'dark'.
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+          if (!savedMode) savedMode = savedTheme;
+          savedTheme = null;
+          try {
+            localStorage.removeItem('theme');
+            localStorage.setItem('mode', savedMode);
+          } catch (_) {}
+        }
+        var theme = THEMES.indexOf(savedTheme) >= 0 ? savedTheme : 'cyberpunk';
+        document.documentElement.setAttribute('data-theme', theme);
         var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var dark = saved ? saved === 'dark' : prefersDark;
+        var dark = savedMode ? savedMode === 'dark' : prefersDark;
         if (dark) document.documentElement.classList.add('dark');
       } catch (_) {}
     })();

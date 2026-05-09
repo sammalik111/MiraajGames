@@ -99,7 +99,7 @@ export default function GameCard({
   };
 
   return (
-    <Link href={routePath} className="block group">
+    <Link href={routePath} data-game-card className="block group">
       <HudPanel innerClassName="p-0 flex flex-col">
         {/* Header strip — accent-tinted band with cabinet id */}
         <div

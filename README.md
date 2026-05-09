@@ -179,6 +179,7 @@ USERDATA
         NEXTAUTH_SECRET=REPLACE_ME
         NEXTAUTH_URL=https://miraajgames.com
         AUTH_TRUST_HOST=true
+        ADMIN_IDS=96j9s0i162a0
         EOF
         chmod 600 /etc/miraaj.env
 
