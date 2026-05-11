@@ -17,6 +17,29 @@ import Navbar from "@/components/navbar";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+interface MetricPoint { t: number; v: number }
+interface MetricSeries {
+  key: string;
+  label: string;
+  metricName: string;
+  unit: string;
+  statistic: string;
+  points: MetricPoint[];
+  latest: number | null;
+  min: number | null;
+  max: number | null;
+  avg: number | null;
+}
+interface CloudWatchPayload {
+  instanceId: string;
+  region?: string;
+  assumedRole: string | null;
+  windowHours: number;
+  period: number;
+  generatedAt: string;
+  metrics: MetricSeries[];
+}
+
 interface Stats {
   users: { total: number; newLast7Days: number };
   feedback: { total: number };
@@ -60,12 +83,20 @@ function formatDate(s: string): string {
 
 export default function DashboardsPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [cw, setCw] = useState<CloudWatchPayload | null>(null);
+  const [cwError, setCwError] = useState<string | null>(null);
+  const [cwLoading, setCwLoading] = useState(false);
+  const [cwHours, setCwHours] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Dashboard payload + CloudWatch metrics fire in PARALLEL on mount.
+  // No need to chain them — they hit different endpoints with different
+  // latency profiles (CloudWatch is slower because it does N upstream
+  // calls).
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -89,9 +120,42 @@ export default function DashboardsPage() {
     }
   }, []);
 
+  const refreshCloudWatch = useCallback(async (hours: number) => {
+    setCwLoading(true);
+    setCwError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/cloudwatchMetrics?hours=${hours}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) {
+        const raw = await res.text();
+        let msg = raw;
+        try {
+          msg = JSON.parse(raw)?.error ?? raw;
+        } catch {}
+        setCwError(`${res.status}: ${msg.slice(0, 200)}`);
+        return;
+      }
+      setCw((await res.json()) as CloudWatchPayload);
+    } catch (e) {
+      setCwError(`Network error: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setCwLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    refreshCloudWatch(cwHours);
+    // intentionally only fire on mount; window changes re-fire below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-fetch CloudWatch whenever the user picks a different window.
+  useEffect(() => {
+    refreshCloudWatch(cwHours);
+  }, [cwHours, refreshCloudWatch]);
 
   const deleteUser = async (id: string) => {
     if (deletingId) return;
@@ -235,30 +299,100 @@ export default function DashboardsPage() {
               </div>
             </section>
 
-            {/* ---------- CLOUDWATCH PLACEHOLDER ---------- */}
+            {/* ---------- CLOUDWATCH ---------- */}
             <section>
-              <div className="flex items-end justify-between pb-3 border-b border-[color:var(--border)]">
+              <div className="flex flex-wrap items-end justify-between gap-3 pb-3 border-b border-[color:var(--border)]">
                 <div>
                   <h2 className="font-display font-bold text-2xl">
                     EC2 / CloudWatch
                   </h2>
                   <p className="text-sm text-[color:var(--fg-muted)] mt-1">
-                    API request volume, error rates, and latency from the
-                    instance running this app.
+                    {cw?.instanceId ? (
+                      <>
+                        Live metrics from{" "}
+                        <span className="text-[color:var(--neon-cyan)] normal-case tracking-normal">
+                          {cw.instanceId}
+                        </span>
+                        {cw.region && (
+                          <>
+                            {" · "}
+                            <span className="text-[color:var(--fg-muted)]">
+                              {cw.region}
+                            </span>
+                          </>
+                        )}
+                        {cw.assumedRole && (
+                          <>
+                            {" · "}
+                            <span className="text-[color:var(--neon-lime)]">
+                              role-assumed
+                            </span>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      "EC2 instance metrics from CloudWatch."
+                    )}
                   </p>
                 </div>
-                <span className="hud-chip">coming soon</span>
+                <div className="flex items-center gap-2">
+                  {/* Window selector */}
+                  <div className="flex border border-[color:var(--border)]">
+                    {[1, 6, 24, 168].map((h) => (
+                      <button
+                        key={h}
+                        onClick={() => setCwHours(h)}
+                        className={`font-mono text-[10px] uppercase tracking-[0.22em] px-3 py-1.5 transition ${
+                          cwHours === h
+                            ? "bg-[color:var(--neon-cyan)] text-black"
+                            : "text-[color:var(--fg-muted)] hover:text-[color:var(--fg)]"
+                        }`}
+                      >
+                        {h === 1
+                          ? "1h"
+                          : h === 6
+                            ? "6h"
+                            : h === 24
+                              ? "24h"
+                              : "7d"}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => refreshCloudWatch(cwHours)}
+                    disabled={cwLoading}
+                    className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] hover:text-[color:var(--neon-cyan)] transition px-2 py-1.5 disabled:opacity-40"
+                  >
+                    {cwLoading ? "..." : "↻"}
+                  </button>
+                </div>
               </div>
-              <div className="mt-4 border border-dashed border-[color:var(--border)] py-12 px-6 text-center">
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
-                  &gt; CloudWatch metrics
+
+              {cwError ? (
+                <div className="mt-4 border border-dashed border-[color:var(--neon-magenta)] py-6 px-4">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-magenta)]">
+                    ✕ CloudWatch fetch failed
+                  </p>
+                  <p className="mt-2 text-xs text-[color:var(--fg-muted)] font-mono break-words">
+                    {cwError}
+                  </p>
+                  <p className="mt-3 text-xs text-[color:var(--fg-muted)]">
+                    Check that AWS_REGION, AWS_ACCESS_KEY_ID,
+                    AWS_SECRET_ACCESS_KEY and EC2_INSTANCE_ID are set in
+                    env. If you&apos;re using a role, also set AWS_ROLE_ARN.
+                  </p>
+                </div>
+              ) : cw ? (
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {cw.metrics.map((m) => (
+                    <MetricCard key={m.key} m={m} />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-6 font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                  <span className="blink">●</span> Fetching CloudWatch...
                 </p>
-                <p className="text-sm text-[color:var(--fg-muted)] mt-2 max-w-md mx-auto">
-                  Wire this to the AWS SDK once you decide which metrics to
-                  surface. Most likely candidates: 5xx rate, p95 latency, CPU
-                  utilization, in-flight connections.
-                </p>
-              </div>
+              )}
             </section>
 
             {/* ---------- FEEDBACK ---------- */}
@@ -476,5 +610,132 @@ function DeleteButton({
     >
       Delete
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CloudWatch metric card: label, latest value, sparkline, min/max/avg.
+// Each card is self-contained — pass it the series object and it renders
+// everything from there.
+// ---------------------------------------------------------------------------
+function MetricCard({ m }: { m: MetricSeries }) {
+  const { label, unit, latest, min, max, avg, points } = m;
+
+  const fmt = (v: number | null): string => {
+    if (v == null || Number.isNaN(v)) return "—";
+    if (unit === "Bytes") {
+      // Format as KB / MB / GB depending on magnitude.
+      const abs = Math.abs(v);
+      if (abs > 1e9) return `${(v / 1e9).toFixed(2)} GB`;
+      if (abs > 1e6) return `${(v / 1e6).toFixed(2)} MB`;
+      if (abs > 1e3) return `${(v / 1e3).toFixed(2)} KB`;
+      return `${v.toFixed(0)} B`;
+    }
+    if (unit === "Percent") return `${v.toFixed(1)}%`;
+    if (Math.abs(v) >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    return v.toFixed(2);
+  };
+
+  // Color cue: red if status-check-failed > 0, otherwise theme accent.
+  const isAlarm = m.key === "statusCheckFailed" && (latest ?? 0) > 0;
+  const accent = isAlarm ? "var(--neon-magenta)" : "var(--neon-cyan)";
+
+  return (
+    <div className="border border-[color:var(--border)] p-4 hover:border-[color:var(--neon-cyan)] transition">
+      <div className="flex items-baseline justify-between mb-2">
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+          {label}
+        </p>
+        <p
+          className="font-mono text-[9px] uppercase tracking-[0.22em]"
+          style={{ color: "var(--fg-muted)" }}
+        >
+          {m.statistic}
+        </p>
+      </div>
+      <p
+        className="font-display font-black text-2xl tabular-nums"
+        style={{ color: accent }}
+      >
+        {fmt(latest)}
+      </p>
+      <div className="mt-3">
+        <Sparkline points={points} stroke={accent} />
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-1 font-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)]">
+        <div>
+          <span className="block">min</span>
+          <span className="text-[color:var(--fg)] normal-case tracking-normal">{fmt(min)}</span>
+        </div>
+        <div>
+          <span className="block">avg</span>
+          <span className="text-[color:var(--fg)] normal-case tracking-normal">{fmt(avg)}</span>
+        </div>
+        <div>
+          <span className="block">max</span>
+          <span className="text-[color:var(--fg)] normal-case tracking-normal">{fmt(max)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inline SVG sparkline. No charting library — for a 12-72 point series
+// the math is tiny and shipping recharts/d3 for this would be massive
+// overkill. Stroke + fill are independent so a flat baseline is drawn
+// to anchor empty-ish series.
+// ---------------------------------------------------------------------------
+function Sparkline({
+  points,
+  stroke,
+}: {
+  points: MetricPoint[];
+  stroke: string;
+}) {
+  const w = 240;
+  const h = 48;
+  if (points.length === 0) {
+    return (
+      <div
+        className="w-full h-12 border border-dashed border-[color:var(--border)] flex items-center justify-center"
+        style={{ width: "100%", height: h }}
+      >
+        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+          no data
+        </span>
+      </div>
+    );
+  }
+  const minT = points[0].t;
+  const maxT = points[points.length - 1].t;
+  const tRange = maxT - minT || 1;
+  const vs = points.map((p) => p.v);
+  const minV = Math.min(...vs);
+  const maxV = Math.max(...vs);
+  const vRange = maxV - minV || 1;
+
+  // Build the path string + a filled area below it.
+  const xy = points.map((p) => {
+    const x = ((p.t - minT) / tRange) * w;
+    const y = h - ((p.v - minV) / vRange) * (h - 2) - 1;
+    return [x, y] as const;
+  });
+  const linePath = xy
+    .map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`)
+    .join(" ");
+  const areaPath = `${linePath} L ${xy[xy.length - 1][0].toFixed(2)} ${h} L ${xy[0][0].toFixed(2)} ${h} Z`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      width="100%"
+      height={h}
+      style={{ display: "block" }}
+    >
+      <path d={areaPath} fill={stroke} fillOpacity={0.12} />
+      <path d={linePath} fill="none" stroke={stroke} strokeWidth={1.5} />
+    </svg>
   );
 }

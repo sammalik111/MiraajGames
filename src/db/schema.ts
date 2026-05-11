@@ -44,6 +44,10 @@ export const users = pgTable(
     avatarUrl: text("avatar_url"),
     // bcrypt hash — never the plain password.
     passwordHash: text("password_hash").notNull(),
+    // Visual preferences. Null = use defaults (cyberpunk + OS preference).
+    // Validated client-side against the theme allow-list before write.
+    preferredTheme: text("preferred_theme"),
+    preferredMode: text("preferred_mode"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

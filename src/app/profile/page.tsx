@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { games } from "@/data/gameData";
 import GameCard from "@/components/gameCard";
+import ThemePicker from "@/components/ThemePicker";
 import Link from "next/link";
 
 interface ProfileStats {
@@ -123,47 +124,48 @@ export default function Profile() {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
 
-  // Hoisted out of the mount effect so any handler (avatar/nickname/etc.)
-  // can re-run it after a successful mutation. router.refresh() doesn't help
-  // because this is a client component — its data lives in useState, not in
-  // the RSC payload.
+  // Single source of truth for all on-mount fetches. Profile, friends,
+  // and favorites all kick off SIMULTANEOUSLY via Promise.all instead of
+  // chaining — the page is interactive in one round-trip's worth of
+  // wait, not three. Re-runnable so any mutation handler (avatar,
+  // nickname, password) can refresh in one call.
   const loadProfile = useCallback(async () => {
     if (!userId) return;
     setLoadingProfile(true);
-    const favs = await retrieveFavorites();
-    setFavoriteIds(favs);
-    try {
-      const res = await fetch(`/api/auth/profile?userID=${userId}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setProfileStats(data.stats);
-      setUserData(data.user);
-    } catch (error) {
-      console.error("Profile load error:", error);
-    } finally {
-      setLoadingProfile(false);
+    setLoadingFriends(true);
+
+    const [profileRes, friendsRes, favsRes] = await Promise.all([
+      fetch(`/api/auth/profile?userID=${userId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch(`/api/friends/getFriends?userID=${userId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch(`/api/auth/favorites`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]);
+
+    if (profileRes) {
+      setProfileStats(profileRes.stats);
+      setUserData(profileRes.user);
     }
+    if (friendsRes) {
+      setFriends(friendsRes.friends ?? []);
+    }
+    if (favsRes && Array.isArray(favsRes.favorites)) {
+      const mine = favsRes.favorites.find(
+        (f: { userId: string }) => f.userId === userId,
+      );
+      setFavoriteIds(mine?.favorites ?? []);
+    }
+    setLoadingProfile(false);
+    setLoadingFriends(false);
   }, [userId]);
 
   useEffect(() => {
     if (!authed || !userId) return;
-
-    const loadFriends = async () => {
-      setLoadingFriends(true);
-      try {
-        const res = await fetch(`/api/friends/getFriends?userID=${userId}`);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setFriends(data.friends ?? []);
-      } catch {
-        /* silent */
-      } finally {
-        setLoadingFriends(false);
-      }
-    };
-
     loadProfile();
-    loadFriends();
   }, [authed, userId, loadProfile]);
 
   const handleNicknameChange = async (command: "POST" | "DELETE") => {
@@ -221,20 +223,37 @@ export default function Profile() {
     }
   };
 
-  const retrieveFavorites = async () => {
-    try {
-      const res = await fetch("/api/auth/favorites");
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      if (!userId) return [];
-      for (const userFav of data.favorites) {
-        if (userFav.userId === userId) return userFav.favorites;
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  };
+  // Sticky-section-nav active indicator. IntersectionObserver watches
+  // each section's ID and highlights whichever is "in view" so the user
+  // gets a sense of place as they scroll. Doesn't gate any rendering —
+  // all sections are always in the DOM, this is purely visual feedback.
+  const [activeSection, setActiveSection] = useState<string>("friends");
+  useEffect(() => {
+    const ids = ["friends", "account", "appearance", "favorites"];
+    const sections = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => !!el);
+    if (sections.length === 0) return;
+
+    // rootMargin of -50%/-40% means a section becomes "active" once its
+    // top crosses the upper-mid of the viewport — feels natural while
+    // scrolling.
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
+          );
+        if (visible.length > 0) {
+          setActiveSection(visible[0].target.id);
+        }
+      },
+      { rootMargin: "-50% 0px -40% 0px" },
+    );
+    sections.forEach((s) => obs.observe(s));
+    return () => obs.disconnect();
+  }, [loadingProfile]);
 
   if (loading) {
     return (
@@ -328,8 +347,49 @@ export default function Profile() {
           />
         )}
 
+        {/* Sticky section nav — sticks to the top of the viewport once
+            the user scrolls past the identity card. Active section is
+            highlighted via the IntersectionObserver effect above. New
+            sections drop in here + as a <section id="..."> below — no
+            extra fetches, no conditional rendering. */}
+        <nav
+          aria-label="Profile sections"
+          className="sticky top-0 z-20 mt-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-2 bg-[color:var(--bg)]/85 backdrop-blur-xl border-y border-[color:var(--border)]"
+        >
+          <ul className="flex gap-1 overflow-x-auto -mx-1 px-1 [scrollbar-width:none]">
+            {[
+              { id: "friends", label: "Friends" },
+              { id: "account", label: "Account" },
+              { id: "appearance", label: "Theme" },
+              { id: "favorites", label: "Favorites" },
+            ].map((item) => {
+              const active = activeSection === item.id;
+              return (
+                <li key={item.id}>
+                  <a
+                    href={`#${item.id}`}
+                    className={`relative block whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.22em] px-3 py-2 transition ${
+                      active
+                        ? "text-[color:var(--neon-cyan)]"
+                        : "text-[color:var(--fg-muted)] hover:text-[color:var(--fg)]"
+                    }`}
+                  >
+                    {item.label}
+                    {active && (
+                      <span
+                        aria-hidden
+                        className="absolute left-2 right-2 -bottom-px h-0.5 bg-[color:var(--neon-cyan)]"
+                      />
+                    )}
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
         {/* Friends */}
-        <section className="mt-12">
+        <section id="friends" className="mt-10 scroll-mt-20">
           <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
@@ -381,7 +441,7 @@ export default function Profile() {
         </section>
 
         {/* Account */}
-        <section className="mt-12">
+        <section id="account" className="mt-12 scroll-mt-20">
           <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
@@ -495,8 +555,35 @@ export default function Profile() {
 
         </section>
 
+        {/* Appearance — full theme picker. The user picks one of the
+            four themes (cyberpunk, solarpunk, minimal, city) and a
+            light/dark mode; both persist in localStorage and are
+            applied to <html> by the boot script in layout.tsx. */}
+        <section id="appearance" className="mt-12 scroll-mt-20">
+          <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                ┌─ System · Appearance
+              </p>
+              <h3 className="font-display font-bold text-2xl mt-2 text-[color:var(--fg)]">
+                Theme
+              </h3>
+            </div>
+            <span className="hud-chip">visual</span>
+          </div>
+          <p className="mt-4 max-w-2xl text-sm text-[color:var(--fg-muted)] leading-relaxed">
+            Pick a visual style for the whole app. Each theme rewires
+            colors, shapes, glow, decoration, and animation — components
+            stay the same so your data and layouts don&apos;t move, but
+            the entire UI changes character.
+          </p>
+          <div className="mt-6">
+            <ThemePicker mode="inline" />
+          </div>
+        </section>
+
         {/* Favorites */}
-        <section className="mt-12">
+        <section id="favorites" className="mt-12 scroll-mt-20">
           <div className="flex items-end justify-between pb-4 border-b border-[color:var(--border)]">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">

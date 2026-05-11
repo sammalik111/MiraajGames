@@ -102,10 +102,13 @@ export default function MessagesPage() {
   const [loadingInbox, setLoadingInbox] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [showChooseFriends, setShowChooseFriends] = useState(false);
+  // Inbox search filter. Pure client-side — the inbox list is small
+  // and already loaded, so filtering in JS is instant. Searches title +
+  // last message preview.
+  const [inboxQuery, setInboxQuery] = useState("");
 
   const fetchFriends = useCallback(async () => {
     if (!userId) return;
-    setLoadingFriends(true);
     try {
       const res = await fetch(`/api/friends/getFriends?userID=${userId}`);
       if (!res.ok) throw new Error();
@@ -115,8 +118,6 @@ export default function MessagesPage() {
       const err = error instanceof Error ? error : new Error("Unknown error");
       console.error("Error fetching friends:", err);
       setFriends([]);
-    } finally {
-      setLoadingFriends(false);
     }
   }, [userId]);
 
@@ -124,7 +125,6 @@ export default function MessagesPage() {
   // with no `lastMessageAt`, so this list only contains channels that have at
   // least one message — exactly what we want to show.
   const fetchInbox = useCallback(async () => {
-    setLoadingInbox(true);
     try {
       const res = await fetch("/api/messages/conversations");
       if (!res.ok) throw new Error();
@@ -132,16 +132,20 @@ export default function MessagesPage() {
       setInbox(data.conversations ?? []);
     } catch {
       /* silent */
-    } finally {
-      setLoadingInbox(false);
     }
   }, []);
 
+  // Single mount-time loader: kicks both fetches off in parallel via
+  // Promise.all and flips the loading flags together. Page becomes
+  // interactive in one round-trip's worth of wait.
   useEffect(() => {
-    if (authed) {
-      fetchFriends();
-      fetchInbox();
-    }
+    if (!authed) return;
+    setLoadingFriends(true);
+    setLoadingInbox(true);
+    Promise.all([fetchFriends(), fetchInbox()]).finally(() => {
+      setLoadingFriends(false);
+      setLoadingInbox(false);
+    });
   }, [authed, fetchFriends, fetchInbox]);
 
   const addFriend = async (e: React.FormEvent) => {
@@ -226,10 +230,28 @@ export default function MessagesPage() {
     );
   }
 
+  // Total unread used in the inbox header.
+  const totalUnread = inbox.reduce(
+    (sum, e) => sum + (e.unreadCount > 0 ? 1 : 0),
+    0,
+  );
+
+  // Filter inbox by search query. Matches conversation label + last
+  // message preview, both lowercased. Empty query = all conversations.
+  const filteredInbox = (() => {
+    const q = inboxQuery.trim().toLowerCase();
+    if (!q) return inbox;
+    return inbox.filter((entry) => {
+      const label = entryLabel(entry).toLowerCase();
+      const preview = (entry.lastMessagePreview ?? "").toLowerCase();
+      return label.includes(q) || preview.includes(q);
+    });
+  })();
+
   return (
     <div className="min-h-screen text-[color:var(--fg)]">
       <Navbar />
-      <main className="relative z-10 max-w-3xl mx-auto px-4 py-10 sm:px-6 lg:px-8 space-y-10">
+      <main className="relative z-10 max-w-6xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
         {/* Header */}
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
@@ -240,152 +262,232 @@ export default function MessagesPage() {
             <span className="text-[color:var(--neon-magenta)] dark:glow-magenta">_</span>
           </h1>
           <p className="text-sm text-[color:var(--fg-muted)] mt-2 max-w-lg">
-            Link with other operators by handle ID, then drop into a DM channel.
+            Friends rail on the left, inbox on the right. Both load in
+            parallel — no clicking through tabs to find things.
           </p>
         </div>
 
-        {/* Add friend */}
-        <section>
-          <div className="flex items-end justify-between pb-3 border-b border-[color:var(--border)]">
-            <h2 className="font-display font-bold text-lg text-[color:var(--fg)]">
-              <span className="text-[color:var(--neon-cyan)] dark:glow-cyan">&gt;</span> Link New Operator
-            </h2>
-          </div>
-          <form onSubmit={addFriend} className="mt-4 flex gap-2">
-            <input
-              type="text"
-              value={friendIdInput}
-              onChange={(e) => setFriendIdInput(e.target.value)}
-              placeholder="operator handle id..."
-              className="flex-1 bg-[color:var(--surface)] border border-[color:var(--border-strong)] px-4 py-3 font-mono text-sm text-[color:var(--fg)] outline-none focus:border-[color:var(--neon-cyan)] transition"
-            />
-            <button
-              type="submit"
-              disabled={addingFriend || !friendIdInput.trim()}
-              className="font-mono text-xs uppercase tracking-[0.2em] px-5 py-3 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition disabled:opacity-50"
-            >
-              {addingFriend ? "Linking…" : "Link +"}
-            </button>
-          </form>
-          {addError && (
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-magenta)]">
-              ✕ {addError}
-            </p>
-          )}
-        </section>
+        {/* Two-pane layout: friends sidebar (left) + inbox (right). On
+            mobile (< lg) the columns stack — friends rail above inbox. */}
+        <div className="mt-8 grid gap-8 lg:grid-cols-[300px_1fr] items-start">
 
-        {/* Allies */}
-        <section>
-          <div className="flex items-end justify-between pb-3 border-b border-[color:var(--border)]">
-            <h2 className="font-display font-bold text-lg text-[color:var(--fg)]">
-              <span className="text-[color:var(--neon-cyan)] dark:glow-cyan">&gt;</span> Allies
-            </h2>
-            {!loadingFriends && friends.length > 0 && (
-              <span className="hud-chip">{friends.length} linked</span>
-            )}
-          </div>
-
-          <div className="mt-4">
-            {loadingFriends ? (
-              <div className="flex gap-5 overflow-x-auto pb-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex flex-col items-center gap-2 flex-shrink-0 animate-pulse">
-                    <div className="w-14 h-14 hud-clip bg-[color:var(--surface-2)]" />
-                    <div className="h-2 w-12 bg-[color:var(--surface-2)]" />
-                  </div>
-                ))}
+          {/* ============== LEFT PANE: FRIENDS RAIL ============== */}
+          <aside className="space-y-6 lg:sticky lg:top-4">
+            {/* Operators */}
+            <div>
+              <div className="flex items-center justify-between pb-2 border-b border-[color:var(--border)]">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                  &gt; Operators
+                </p>
+                {!loadingFriends && friends.length > 0 && (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                    {friends.length}
+                  </span>
+                )}
               </div>
-            ) : friends.length === 0 ? (
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
-                &gt; No allies linked. Add one above to bootstrap.
-              </p>
-            ) : (
-              <div className="flex gap-5 overflow-x-auto pb-2">
-                {friends.map((friend) => (
-                  <div key={friend.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 group relative">
-                    {removingId === friend.id ? (
-                      <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-14 h-14 hud-clip border border-[color:var(--neon-magenta)] bg-[color:var(--surface-2)] flex items-center justify-center">
-                          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--neon-magenta)] text-center leading-tight px-1">
-                            Drop?
-                          </span>
-                        </div>
-                        <div className="flex gap-2 font-mono text-[10px] uppercase tracking-[0.18em]">
-                          <button
-                            onClick={() => removeFriend(friend.id)}
-                            className="text-[color:var(--neon-magenta)] hover:underline"
-                          >
-                            Yes
-                          </button>
-                          <span className="text-[color:var(--border-strong)]">/</span>
-                          <button
-                            onClick={() => setRemovingId(null)}
-                            className="text-[color:var(--fg-muted)] hover:text-[color:var(--fg)]"
-                          >
-                            No
-                          </button>
-                        </div>
+
+              <div className="mt-3">
+                {loadingFriends ? (
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col items-center gap-1 animate-pulse"
+                      >
+                        <div className="w-12 h-12 hud-clip bg-[color:var(--surface-2)]" />
+                        <div className="h-2 w-10 bg-[color:var(--surface-2)]" />
                       </div>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <Link href={`/profile/${friend.id}`}>
-                            <Avatar name={friend.name} image={friend.image} size={56} />
-                          </Link>
-                          <button
-                            onClick={() => setRemovingId(friend.id)}
-                            className="absolute -top-1 -right-1 w-5 h-5 bg-[color:var(--surface)] border border-[color:var(--border-strong)] text-[color:var(--fg-muted)] text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:border-[color:var(--neon-magenta)] hover:text-[color:var(--neon-magenta)]"
-                            title="Unlink"
-                          >
-                            ×
-                          </button>
-                        </div>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)] max-w-[72px] truncate text-center">
-                          {friend.name}
-                        </span>
-                      </>
-                    )}
+                    ))}
                   </div>
-                ))}
+                ) : friends.length === 0 ? (
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] py-3">
+                    &gt; None linked yet.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2">
+                    {friends.map((friend) => (
+                      <div
+                        key={friend.id}
+                        className="flex flex-col items-center gap-1 group relative"
+                      >
+                        {removingId === friend.id ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="w-12 h-12 hud-clip border border-[color:var(--neon-magenta)] bg-[color:var(--surface-2)] flex items-center justify-center">
+                              <span className="font-mono text-[8px] uppercase tracking-[0.18em] text-[color:var(--neon-magenta)] text-center leading-tight px-1">
+                                Drop?
+                              </span>
+                            </div>
+                            <div className="flex gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em]">
+                              <button
+                                onClick={() => removeFriend(friend.id)}
+                                className="text-[color:var(--neon-magenta)] hover:underline"
+                              >
+                                Yes
+                              </button>
+                              <span className="text-[color:var(--border-strong)]">/</span>
+                              <button
+                                onClick={() => setRemovingId(null)}
+                                className="text-[color:var(--fg-muted)] hover:text-[color:var(--fg)]"
+                              >
+                                No
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="relative">
+                              <Link href={`/profile/${friend.id}`}>
+                                <Avatar
+                                  name={friend.name}
+                                  image={friend.image}
+                                  size={48}
+                                />
+                              </Link>
+                              <button
+                                onClick={() => setRemovingId(friend.id)}
+                                className="absolute -top-1 -right-1 w-4 h-4 bg-[color:var(--surface)] border border-[color:var(--border-strong)] text-[color:var(--fg-muted)] text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:border-[color:var(--neon-magenta)] hover:text-[color:var(--neon-magenta)]"
+                                title="Unlink"
+                              >
+                                ×
+                              </button>
+                            </div>
+                            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--fg-muted)] max-w-[60px] truncate text-center">
+                              {friend.name}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </section>
+            </div>
 
-        {/* Inbox — active conversations only (server filters out empty ones). */}
-        <section>
-          <div className="flex items-end justify-between pb-3 border-b border-[color:var(--border)]">
-            <h2 className="font-display font-bold text-lg text-[color:var(--fg)]">
-              <span className="text-[color:var(--neon-cyan)] dark:glow-cyan">&gt;</span> Inbox
-            </h2>
-            <div className="flex items-center gap-3">
-              <span className="hud-chip">{inbox.length} channels</span>
+            {/* Add friend — compact form, always visible. */}
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)] pb-2 border-b border-[color:var(--border)]">
+                &gt; Link Operator
+              </p>
+              <form onSubmit={addFriend} className="mt-3 space-y-2">
+                <input
+                  type="text"
+                  value={friendIdInput}
+                  onChange={(e) => setFriendIdInput(e.target.value)}
+                  placeholder="handle id..."
+                  className="w-full bg-[color:var(--surface)] border border-[color:var(--border-strong)] px-3 py-2 font-mono text-xs text-[color:var(--fg)] outline-none focus:border-[color:var(--neon-cyan)] transition"
+                />
+                <button
+                  type="submit"
+                  disabled={addingFriend || !friendIdInput.trim()}
+                  className="w-full font-mono text-[10px] uppercase tracking-[0.22em] px-3 py-2 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition disabled:opacity-50"
+                >
+                  {addingFriend ? "Linking…" : "Link +"}
+                </button>
+              </form>
+              {addError && (
+                <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.22em] text-[color:var(--neon-magenta)] leading-relaxed">
+                  ✕ {addError}
+                </p>
+              )}
+            </div>
+          </aside>
+
+          {/* ============== RIGHT PANE: INBOX ============== */}
+          <section>
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[color:var(--border)]">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--neon-cyan)]">
+                  &gt; Conversations
+                </p>
+                <p className="text-sm text-[color:var(--fg-muted)] mt-1">
+                  {inbox.length} channel{inbox.length === 1 ? "" : "s"}
+                  {totalUnread > 0 ? (
+                    <>
+                      {" · "}
+                      <span className="text-[color:var(--neon-cyan)]">
+                        {totalUnread} unread
+                      </span>
+                    </>
+                  ) : (
+                    " · all caught up"
+                  )}
+                </p>
+              </div>
               <button
                 onClick={() => setShowChooseFriends(true)}
-                className="font-mono text-xs uppercase tracking-[0.2em] px-3 py-1.5 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition"
+                disabled={friends.length === 0}
+                className="font-mono text-xs uppercase tracking-[0.2em] px-3 py-2 bg-[color:var(--neon-cyan)] text-black hover:ring-cyan transition disabled:opacity-40 disabled:cursor-not-allowed"
+                title={friends.length === 0 ? "Add a friend first" : "Open new DM"}
               >
-                Open DM +
+                + New DM
               </button>
             </div>
-          </div>
 
-          {showChooseFriends && (
-            <ChooseFriends onClose={() => setShowChooseFriends(false)} />
-          )}
+            {/* Search filter — only shown when there's something to filter */}
+            {inbox.length > 4 && (
+              <div className="mt-3 relative">
+                <span
+                  aria-hidden
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--fg-muted)]"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  value={inboxQuery}
+                  onChange={(e) => setInboxQuery(e.target.value)}
+                  placeholder="Filter conversations…"
+                  className="w-full pl-9 pr-9 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border)] focus:border-[color:var(--neon-cyan)] outline-none text-sm font-mono text-[color:var(--fg)] transition"
+                />
+                {inboxQuery && (
+                  <button
+                    onClick={() => setInboxQuery("")}
+                    aria-label="Clear filter"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2 font-mono text-[10px] text-[color:var(--fg-muted)] hover:text-[color:var(--neon-magenta)]"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
 
-          {loadingInbox ? (
-            <p className="mt-4 font-mono text-xs uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
-              <span className="blink">●</span> Loading channels...
-            </p>
-          ) : inbox.length === 0 ? (
-            <HudPanel className="mt-4" innerClassName="p-8 text-center">
-              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
-                &gt; No channels open. Hit &ldquo;Open DM&rdquo; to start one.
+            {showChooseFriends && (
+              <ChooseFriends onClose={() => setShowChooseFriends(false)} />
+            )}
+
+            {loadingInbox ? (
+              <ul className="mt-4 divide-y divide-[color:var(--border)] border-t border-b border-[color:var(--border)]">
+                {[1, 2, 3].map((i) => (
+                  <li key={i} className="flex items-center gap-4 px-3 py-3 animate-pulse">
+                    <div className="w-11 h-11 hud-clip bg-[color:var(--surface-2)]" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-2.5 w-32 bg-[color:var(--surface-2)]" />
+                      <div className="h-2 w-48 bg-[color:var(--surface-2)]" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : inbox.length === 0 ? (
+              <div className="mt-6 border border-dashed border-[color:var(--border)] py-12 px-6 text-center">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+                  &gt; No channels open
+                </p>
+                <p className="text-sm text-[color:var(--fg-muted)] mt-2 max-w-sm mx-auto">
+                  {friends.length === 0
+                    ? "Link an operator from the rail on the left, then open a DM."
+                    : "Hit + New DM to start a conversation."}
+                </p>
+              </div>
+            ) : filteredInbox.length === 0 ? (
+              <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)] text-center">
+                ✕ No matches for &ldquo;{inboxQuery}&rdquo;
               </p>
-            </HudPanel>
-          ) : (
-            <ul className="mt-4 divide-y divide-[color:var(--border)] border-t border-b border-[color:var(--border)]">
-              {inbox.map((entry) => {
+            ) : (
+              <ul className="mt-4 divide-y divide-[color:var(--border)] border-t border-b border-[color:var(--border)]">
+              {filteredInbox.map((entry) => {
                 const label = entryLabel(entry);
                 const avatarName = entryAvatarName(entry);
                 const avatarImage = entryAvatarImage(entry);
@@ -449,7 +551,8 @@ export default function MessagesPage() {
               })}
             </ul>
           )}
-        </section>
+          </section>
+        </div>
       </main>
     </div>
   );
