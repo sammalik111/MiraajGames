@@ -39,8 +39,8 @@ const METRICS: MetricSpec[] = [
   { key: "cpu",               label: "CPU Utilization",     metricName: "CPUUtilization",     namespace: "AWS/EC2", statistic: Statistic.Average, unit: StandardUnit.Percent },
   { key: "networkIn",         label: "Network In",          metricName: "NetworkIn",          namespace: "AWS/EC2", statistic: Statistic.Sum,     unit: StandardUnit.Bytes   },
   { key: "networkOut",        label: "Network Out",         metricName: "NetworkOut",         namespace: "AWS/EC2", statistic: Statistic.Sum,     unit: StandardUnit.Bytes   },
-  { key: "diskReadOps",       label: "Disk Read Ops",       metricName: "DiskReadOps",        namespace: "AWS/EC2", statistic: Statistic.Sum,     unit: StandardUnit.Count   },
-  { key: "diskWriteOps",      label: "Disk Write Ops",      metricName: "DiskWriteOps",       namespace: "AWS/EC2", statistic: Statistic.Sum,     unit: StandardUnit.Count   },
+  { key: "NetworkPacketsOut", label: "Network Packets Out", metricName: "NetworkPacketsOut",  namespace: "AWS/EC2", statistic: Statistic.Sum,     unit: StandardUnit.Count   },
+  { key: "NetworkPacketsIn",  label: "Network Packets In",  metricName: "NetworkPacketsIn",   namespace: "AWS/EC2", statistic: Statistic.Sum,     unit: StandardUnit.Count   },
   { key: "statusCheckFailed", label: "Status Check Failed", metricName: "StatusCheckFailed",  namespace: "AWS/EC2", statistic: Statistic.Maximum, unit: StandardUnit.Count   },
 ];
 
