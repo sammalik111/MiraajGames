@@ -13,7 +13,6 @@ something works or want to onboard someone, start here.
 | [database.md](./documentation/database.md) | Drizzle ORM + Neon Postgres — schema-as-code workflow |
 | [auth.md](./documentation/auth.md) | NextAuth, `requireUser`, `requireAdmin` patterns |
 | [multiplayer.md](./documentation/multiplayer.md) | Multiplayer architecture, tables, API, tricks |
-| [themes.md](./documentation/themes.md) | Theme system, adding a new theme |
 | [admin-and-monitoring.md](./documentation/admin-and-monitoring.md) | Admin panel, feedback, CloudWatch metrics |
 | [aws-cli.md](./documentation/aws-cli.md) | Install AWS CLI on the EC2 instance |
 

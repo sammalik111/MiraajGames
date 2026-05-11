@@ -66,16 +66,16 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">
           {themeInit}
         </Script>
-        {/* Google AdSense — loader only. With Auto Ads enabled in the
-            AdSense console, this script alone is sufficient — Google
-            picks placements automatically. The old `enable_page_level_ads`
-            push is incompatible with dashboard-driven Auto Ads and throws
-            on client-side navigation when the layout re-runs. For manual
-            placements, use <AdSlot slot="..."/> which does its own push
-            once per <ins> on mount. */}
-        <Script
+        {/* Google AdSense loader — rendered as a PLAIN <script> tag (not
+            next/script). Reason: next/script adds a data-nscript="..."
+            attribute to every script it injects, and AdSense's automated
+            audit rejects any adsbygoogle.js tag that has extra
+            attributes on it ("head tag doesn't support data-nscript").
+            React 19 supports plain <script async src=...> in <head> and
+            doesn't move or duplicate it. With Auto Ads enabled in the
+            AdSense console, this loader alone is sufficient. */}
+        <script
           async
-          strategy="afterInteractive"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3368130627100785"
           crossOrigin="anonymous"
         />
