@@ -7,15 +7,15 @@ something works or want to onboard someone, start here.
 
 | File | Topic |
 |---|---|
-| [getting-started.md](./getting-started.md) | Clone, install, env, run locally |
-| [deployment.md](./deployment.md) | Provision the EC2 box, point DNS, run user-data |
-| [production-updates.md](./production-updates.md) | `git pull` workflow + nightly cron automation |
-| [database.md](./database.md) | Drizzle ORM + Neon Postgres — schema-as-code workflow |
-| [auth.md](./auth.md) | NextAuth, `requireUser`, `requireAdmin` patterns |
-| [multiplayer.md](./multiplayer.md) | Multiplayer architecture, tables, API, tricks |
-| [themes.md](./themes.md) | Theme system, adding a new theme |
-| [admin-and-monitoring.md](./admin-and-monitoring.md) | Admin panel, feedback, CloudWatch metrics |
-| [aws-cli.md](./aws-cli.md) | Install AWS CLI on the EC2 instance |
+| [getting-started.md](./documentation/getting-started.md) | Clone, install, env, run locally |
+| [deployment.md](./documentation/deployment.md) | Provision the EC2 box, point DNS, run user-data |
+| [production-updates.md](./documentation/production-updates.md) | `git pull` workflow + nightly cron automation |
+| [database.md](./documentation/database.md) | Drizzle ORM + Neon Postgres — schema-as-code workflow |
+| [auth.md](./documentation/auth.md) | NextAuth, `requireUser`, `requireAdmin` patterns |
+| [multiplayer.md](./documentation/multiplayer.md) | Multiplayer architecture, tables, API, tricks |
+| [themes.md](./documentation/themes.md) | Theme system, adding a new theme |
+| [admin-and-monitoring.md](./documentation/admin-and-monitoring.md) | Admin panel, feedback, CloudWatch metrics |
+| [aws-cli.md](./documentation/aws-cli.md) | Install AWS CLI on the EC2 instance |
 
 ## Conventions
 
