@@ -105,19 +105,13 @@ export default function ContactUs() {
               <ul className="mt-3 space-y-3">
                 <ContactMethod
                   label="Email"
-                  value="hello@miraaj-games.example"
-                  href="mailto:hello@miraaj-games.example"
+                  value="malikatmiraaj@gmail.com"
+                  href="mailto:malikatmiraaj@gmail.com"
                 />
                 <ContactMethod
                   label="GitHub issues"
                   value="bug reports + feature requests"
-                  href="#"
-                  external
-                />
-                <ContactMethod
-                  label="Discord"
-                  value="join the dev channel"
-                  href="#"
+                  href="https://github.com/sammalik111/MiraajGames/issues"
                   external
                 />
               </ul>

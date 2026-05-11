@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Orbitron, JetBrains_Mono, VT323 } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import AdSenseLoader from "@/components/AdSenseLoader";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -60,28 +60,20 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${jetbrains.variable} ${vt323.variable} h-full antialiased`}
     >
       <head>
-        {/* Theme init must run before first paint to avoid a white flash —
-            beforeInteractive injects it ahead of hydration. Plain <script>
-            tags in JSX are no-ops on client renders in React 19. */}
-        <Script id="theme-init" strategy="beforeInteractive">
-          {themeInit}
-        </Script>
-        {/* Google AdSense loader — rendered as a PLAIN <script> tag (not
-            next/script). Reason: next/script adds a data-nscript="..."
-            attribute to every script it injects, and AdSense's automated
-            audit rejects any adsbygoogle.js tag that has extra
-            attributes on it ("head tag doesn't support data-nscript").
-            React 19 supports plain <script async src=...> in <head> and
-            doesn't move or duplicate it. With Auto Ads enabled in the
-            AdSense console, this loader alone is sufficient. */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3368130627100785"
-          crossOrigin="anonymous"
-        />
+        {/* Theme-init runs synchronously during HTML parsing, before
+            React hydrates. Sets <html data-theme> + .dark so the first
+            paint matches the user's saved preference. Safe to keep in
+            SSR'd <head> — it only mutates attributes on <html>, never
+            adds new <script> children that would confuse hydration. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
+        {/* AdSense loader is injected client-side after hydration.
+            Keeping it out of the SSR'd <head> dodges the hydration
+            mismatch caused by AdSense dynamically adding more <script>
+            tags before React mounts. */}
+        <AdSenseLoader />
       </body>
     </html>
   );
