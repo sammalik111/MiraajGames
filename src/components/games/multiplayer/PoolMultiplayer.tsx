@@ -158,6 +158,25 @@ export default function PoolMultiplayer({
   const iLost = iLostRack || iForfeited;
   const gameOver = iWon || iLost;
 
+  // Stats: report outcome once per game-end. Resets on rematch.
+  const statsReportedRef = useRef(false);
+  useEffect(() => {
+    if (!gameOver) {
+      statsReportedRef.current = false;
+      return;
+    }
+    if (statsReportedRef.current) return;
+    statsReportedRef.current = true;
+    const finalOutcome = iForfeited ? "forfeit" : iWon ? "win" : "loss";
+    fetch("/api/stats/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId, outcome: finalOutcome }),
+    }).catch(() => {
+      statsReportedRef.current = false;
+    });
+  }, [gameOver, iForfeited, iWon, gameId]);
+
   const turnSeat = shots.length % 2;
   const myTurn = !gameOver && turnSeat === mySeat;
 

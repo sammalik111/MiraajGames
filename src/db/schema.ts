@@ -454,6 +454,33 @@ export const feedbackTable = pgTable("feedback_table", {
 
 
 // -----------------------------------------------------------------------------
+// User's Stats Table
+// -----------------------------------------------------------------------------
+
+export const userStatsTable = pgTable("user_stats_table", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  gamesPlayed: integer("games_played").notNull().default(0),
+  gamesWon: integer("games_won").notNull().default(0),
+  gamesLost: integer("games_lost").notNull().default(0),
+  gamesDrawn: integer("games_drawn").notNull().default(0),
+  forfeits: integer("forfeits").notNull().default(0),
+  pointsWon: integer("points_won").notNull().default(0),
+  highScore: integer("high_score").notNull().default(0),
+  currentWinStreak: integer("current_win_streak").notNull().default(0),
+  longestWinStreak: integer("longest_win_streak").notNull().default(0),
+  minutesPlayed: integer("minutes_played").notNull().default(0),
+  firstPlayedAt: timestamp("first_played_at", { withTimezone: true }),
+  lastPlayedAt: timestamp("last_played_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+
+
+// -----------------------------------------------------------------------------
 // Inferred TS types
 // -----------------------------------------------------------------------------
 
@@ -476,6 +503,8 @@ export type GameMove = typeof gameMoves.$inferSelect;
 export type NewGameMove = typeof gameMoves.$inferInsert;
 export type Feedback = typeof feedbackTable.$inferSelect;
 export type NewFeedback = typeof feedbackTable.$inferInsert;
+export type UserStats = typeof userStatsTable.$inferSelect;
+export type NewUserStats = typeof userStatsTable.$inferInsert;
 
 // Shared move-payload types. Server doesn't care about these — only client
 // game components interpret them. Add new entries as you bring more games

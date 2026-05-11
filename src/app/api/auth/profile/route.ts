@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { db, userFavorites, users } from "@/db";
+import { db, userFavorites, users, userStatsTable} from "@/db";
 import { displayName } from "@/db/displayName";
 
 // GET /api/auth/profile?userID=<id>
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   // One row per user — name + email together so we don't fire two queries.
   const [userRow] = await db
-    .select({ name: displayName, email: users.email, image: users.avatarUrl })
+    .select({ name: displayName, email: users.email, image: users.avatarUrl, createdDate: users.createdAt })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
@@ -33,14 +33,53 @@ export async function GET(request: Request) {
     .where(eq(userFavorites.userId, userId));
   const favoriteIds = favRows.map((r) => r.gameId);
 
-  // The "stats" are still derived placeholders — wire them to real
-  // game-play tables when those exist.
-  const favoriteCount = favoriteIds.length;
+
+  const [userStats] = await db
+  .select()
+  .from(userStatsTable)
+  .where(eq(userStatsTable.userId, userId))
+  .limit(1);
+
+  if (!userStats) {
+    return NextResponse.json(
+      { error: "User stats missing" },
+      { status: 404 }
+    );
+  }
+
+  const {
+    gamesWon,
+    gamesDrawn,
+    gamesLost,
+    forfeits,
+    gamesPlayed,
+    currentWinStreak,
+    longestWinStreak,
+    pointsWon,
+    highScore,
+  } = userStats;
+
+  const multiPlayerGames = gamesWon + gamesDrawn + gamesLost + forfeits;
+  const winRate = multiPlayerGames > 0
+    ? Number(((gamesWon / multiPlayerGames) * 100).toFixed(2))
+    : 0;
+  const singlePlayerGames = gamesPlayed - multiPlayerGames;
+  const accountAgeDays = userRow.createdDate
+  ? Math.floor(
+      (Date.now() - userRow.createdDate.getTime()) /
+      (1000 * 60 * 60 * 24)
+    )
+  : 0;
+
   const stats = {
-    favoriteCount,
-    gamesPlayed: favoriteCount * 3 + 5,
-    achievements: Math.min(favoriteCount + 2, 12),
-    points: favoriteCount * 125 + 500,
+    singlePlayerGames,
+    multiPlayerGames,
+    winRate,
+    currentStreak: currentWinStreak,
+    longestStreak: longestWinStreak,
+    accountAge: accountAgeDays,
+    points: pointsWon,
+    highScores: highScore,
   };
 
   return NextResponse.json({

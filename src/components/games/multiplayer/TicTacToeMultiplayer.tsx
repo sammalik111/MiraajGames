@@ -293,6 +293,28 @@ export default function TicTacToeMultiplayer({
         ? "loss"
         : "draw";
 
+  // Stats: report this match's outcome to the central stats endpoint
+  // exactly once per game-end. Guard ref so React Strict Mode + polling
+  // re-renders don't double-count, and reset when a rematch flips
+  // gameOver back to false so the NEXT round can report too.
+  const statsReportedRef = useRef(false);
+  useEffect(() => {
+    if (!gameOver) {
+      statsReportedRef.current = false;
+      return;
+    }
+    if (statsReportedRef.current) return;
+    statsReportedRef.current = true;
+    const finalOutcome = iForfeited ? "forfeit" : outcome;
+    fetch("/api/stats/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId, outcome: finalOutcome }),
+    }).catch(() => {
+      statsReportedRef.current = false;
+    });
+  }, [gameOver, iForfeited, outcome, gameId]);
+
   return (
     <div className="relative flex flex-col items-center gap-4">
       {/* HUD */}

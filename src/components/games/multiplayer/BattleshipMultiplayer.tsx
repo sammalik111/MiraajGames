@@ -267,6 +267,26 @@ export default function BattleshipMultiplayer({
   const iWon = iWonHits || opponentForfeited;
   const iLost = iLostHits || iForfeited;
   const gameOver = iWon || iLost;
+
+  // Stats: report outcome once per game-end. Resets on rematch so
+  // subsequent rounds report independently.
+  const statsReportedRef = useRef(false);
+  useEffect(() => {
+    if (!gameOver) {
+      statsReportedRef.current = false;
+      return;
+    }
+    if (statsReportedRef.current) return;
+    statsReportedRef.current = true;
+    const finalOutcome = iForfeited ? "forfeit" : iWon ? "win" : "loss";
+    fetch("/api/stats/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId, outcome: finalOutcome }),
+    }).catch(() => {
+      statsReportedRef.current = false;
+    });
+  }, [gameOver, iForfeited, iWon, gameId]);
   const myTurn =
     bothReady && !gameOver && turnSeat === mySeat && !shotInFlight;
 

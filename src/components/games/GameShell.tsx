@@ -29,13 +29,24 @@ export default function GameShell({ gameId, children }: Props) {
     (score: number, metadata?: Record<string, unknown>) => {
       setFinalScore(score);
       setFinalMeta(metadata);
-      // Fire-and-forget submit happens NOW so the leaderboard read on panel
-      // mount sees the fresh score.
-      fetch(`/api/games/${gameId}/submitScore`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ score, metadata }),
-      }).catch(() => {});
+      // Submit the score first so the best-score upsert lands before
+      // the stats update recomputes the high-score count. Both are
+      // fire-and-forget — the panel can read the leaderboard while
+      // they're still in flight.
+      (async () => {
+        try {
+          await fetch(`/api/games/${gameId}/submitScore`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ score, metadata }),
+          });
+          fetch(`/api/stats/update`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ gameId, score }),
+          }).catch(() => {});
+        } catch {}
+      })();
     },
     [gameId],
   );

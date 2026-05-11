@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db, users } from "@/db";
+import { db, users, userStatsTable } from "@/db";
 import { makeId } from "@/lib/ids";
 
 export async function POST(req: NextRequest) {
@@ -36,6 +36,11 @@ export async function POST(req: NextRequest) {
       email,
       name: name || null,
       passwordHash,
+    });
+
+    // create default stats for this user, everything else will default to 0 
+    await db.insert(userStatsTable).values({
+      userId: id
     });
 
     return NextResponse.json(

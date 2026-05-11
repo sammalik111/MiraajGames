@@ -13,10 +13,14 @@ import ThemePicker from "@/components/ThemePicker";
 import Link from "next/link";
 
 interface ProfileStats {
-  favoriteCount: number;
-  gamesPlayed: number;
-  achievements: number;
-  points: number;
+  singlePlayerGames: number,
+  multiPlayerGames: number,
+  winRate: number,
+  currentStreak: number,
+  longestStreak: number,
+  accountAge: number,
+  points: number,
+  highScores: number,
 }
 
 interface Friend {
@@ -271,7 +275,7 @@ export default function Profile() {
   const userName = userData?.name || "Unknown User";
   const userEmail = userData?.email || "Unknown Email";
   const userImage = userData?.image || null;
-  const favCount = profileStats?.favoriteCount ?? 0;
+  const favCount = favoriteIds.length ?? 0;
   const tier = favCount > 3 ? "Pro" : "Starter";
 
   const favoriteGames = games.filter((g) => favoriteIds.includes(g.id));
@@ -320,10 +324,14 @@ export default function Profile() {
           {/* Stat rail */}
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-[color:var(--border)]">
             {[
-              { label: "Games Played", value: profileStats?.gamesPlayed, accent: "cyan" },
-              { label: "Achievements", value: profileStats?.achievements, accent: "magenta" },
+              { label: "Single Player Games Played", value: profileStats?.singlePlayerGames, accent: "cyan" },
+              { label: "Multi Player Games Played", value: profileStats?.multiPlayerGames, accent: "magenta" },
               { label: "Points", value: profileStats?.points, accent: "yellow" },
-              { label: "Favorites", value: profileStats?.favoriteCount, accent: "lime" },
+              { label: "Win Rate", value: profileStats?.winRate + "%", accent: "magenta" },
+              { label: "Games with High Score", value: profileStats?.highScores, accent: "yellow" },
+              { label: "Account Age", value: profileStats?.accountAge, accent: "lime" },
+              { label: "Current Win Streak", value: profileStats?.currentStreak, accent: "magenta" },
+              { label: "Longest Win Streak", value: profileStats?.longestStreak, accent: "yellow" },
             ].map((stat) => (
               <div key={stat.label} className="border-l-2 border-[color:var(--border-strong)] pl-3">
                 <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
