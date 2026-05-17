@@ -48,13 +48,13 @@ Paste this into the **User data** field at launch time. It bootstraps Node, Cadd
     # --- 3. Base packages. Do NOT include debian-keyring on noble (24.04) —
     #        it doesn't exist there and will fail the script.
     echo "--- base packages"
-    apt-get update -y
-    apt-get install -y curl git ca-certificates gnupg apt-transport-https
+    sudo apt-get update -y
+    sudo apt-get install -y curl git ca-certificates gnupg apt-transport-https
 
     # --- 4. Node 20 from NodeSource.
     echo "--- node 20"
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y nodejs
+    sudo apt-get install -y nodejs
 
     # --- 5. Caddy from the official Cloudsmith repo.
     echo "--- caddy"
@@ -62,17 +62,17 @@ Paste this into the **User data** field at launch time. It bootstraps Node, Cadd
       | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     curl -fsSL 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
       > /etc/apt/sources.list.d/caddy-stable.list
-    apt-get update -y
-    apt-get install -y caddy
+    sudo apt-get update -y
+    sudo apt-get install -y caddy
 
     # --- 6. Clone the repo (public, no auth needed).
     echo "--- cloning repo"
-    sudo -u ubuntu git clone <YOUR_REPO_URL> /home/ubuntu/app
+    sudo -u ubuntu git clone https://github.com/sammalik111/MiraajGames.git /home/ubuntu/app
 
     # --- 7. Placeholder env file. Edit after first SSH.
     #        AUTH_TRUST_HOST=true is required behind any reverse proxy.
     echo "--- placeholder /etc/miraaj.env"
-    cat >/etc/miraaj.env <<'EOF'
+    sudo cat >/etc/miraaj.env <<'EOF'
     DATABASE_URL=REPLACE_ME
     NEXTAUTH_SECRET=REPLACE_ME
     NEXTAUTH_URL=https://YOUR_DOMAIN.com
@@ -111,8 +111,8 @@ Paste this into the **User data** field at launch time. It bootstraps Node, Cadd
 
     # --- 9. Caddyfile — reverse proxy + automatic HTTPS via Let's Encrypt.
     echo "--- caddyfile"
-    cat >/etc/caddy/Caddyfile <<'EOF'
-    YOUR_DOMAIN.com, www.YOUR_DOMAIN.com {
+    sudo cat >/etc/caddy/Caddyfile <<'EOF'
+    https://miraajgames.com/.com, www.miraajgames.com {
         encode zstd gzip
         reverse_proxy 127.0.0.1:3000
     }
@@ -133,7 +133,7 @@ Paste this into the **User data** field at launch time. It bootstraps Node, Cadd
     echo "  1. sudo nano /etc/miraaj.env       # paste real DATABASE_URL + NEXTAUTH_SECRET"
     echo "  2. cd /home/ubuntu/app"
     echo "     set -a; source /etc/miraaj.env; set +a"
-    echo "     npm ci && npm run build"
+    echo "     sudo apt install npm && npm ci && npm run build"
     echo "  3. sudo systemctl start miraaj"
     echo "  4. visit https://YOUR_DOMAIN.com"
     ```

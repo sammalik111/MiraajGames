@@ -63,7 +63,7 @@ export async function GET(request: Request) {
   const winRate = multiPlayerGames > 0
     ? Number(((gamesWon / multiPlayerGames) * 100).toFixed(2))
     : 0;
-  const singlePlayerGames = gamesPlayed - multiPlayerGames;
+  const singlePlayerGames = gamesPlayed;
   const accountAgeDays = userRow.createdDate
   ? Math.floor(
       (Date.now() - userRow.createdDate.getTime()) /
