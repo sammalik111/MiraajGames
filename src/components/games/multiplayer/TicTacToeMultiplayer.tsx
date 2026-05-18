@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import type { TicTacToeMove } from "@/db/schema";
 import { useRematchVote } from "./useRematchVote";
 import MultiplayerEndOverlay from "./MultiplayerEndOverlay";
+import GameChat from "./GameChat";
 
 type Cell = "X" | "O" | null;
 type Board = Cell[];
@@ -317,6 +318,7 @@ export default function TicTacToeMultiplayer({
 
   return (
     <div className="relative flex flex-col items-center gap-4">
+      <GameChat roomId={sessionId} />
       {/* HUD */}
       <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
         <span>

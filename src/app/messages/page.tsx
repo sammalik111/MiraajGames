@@ -148,6 +148,18 @@ export default function MessagesPage() {
     });
   }, [authed, fetchFriends, fetchInbox]);
 
+  // Poll inbox every 15s; pause when tab hidden, catch up on focus.
+  useEffect(() => {
+    if (!authed) return;
+    const tick = () => !document.hidden && fetchInbox();
+    const id = window.setInterval(tick, 15_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [authed, fetchInbox]);
+
   const addFriend = async (e: React.FormEvent) => {
     e.preventDefault();
     const friendId = friendIdInput.trim();

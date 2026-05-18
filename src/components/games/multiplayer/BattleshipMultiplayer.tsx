@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRematchVote } from "./useRematchVote";
 import MultiplayerEndOverlay from "./MultiplayerEndOverlay";
+import GameChat from "./GameChat";
 
 interface Participant {
   userId: string;
@@ -506,6 +507,7 @@ export default function BattleshipMultiplayer({
 
   return (
     <div className="relative flex flex-col items-center gap-4">
+      <GameChat roomId={sessionId} />
       {/* HUD */}
       <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
         <span>vs {opponentName}</span>

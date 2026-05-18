@@ -213,11 +213,39 @@ export default function MessagePage() {
     };
   }, [authed, userId, conversationId]);
 
-  // Stick to bottom on new messages.
+  // Auto-scroll to bottom on new messages, but only if already near it —
+  // don't yank users who've scrolled up to read history.
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight <= 80) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages.length]);
+
+  // Poll active chat every 5s; pause when hidden, catch up on focus.
+  // Merge by id so locally-rendered messages aren't duplicated.
+  useEffect(() => {
+    if (!authed || !userId || !conversationId) return;
+    const tick = async () => {
+      if (document.hidden) return;
+      const res = await fetch(`/api/messages/${encodeURIComponent(conversationId)}`).catch(() => null);
+      if (!res?.ok) return;
+      const { messages: incoming = [] } = await res.json();
+      setMessages((prev) => {
+        const seen = new Set(prev.map((m) => m.id));
+        const added = incoming.filter((m: Message) => !seen.has(m.id));
+        return added.length ? [...prev, ...added].sort((a, b) => a.createdAt - b.createdAt) : prev;
+      });
+      fetch(`/api/messages/${encodeURIComponent(conversationId)}/read`, { method: "POST" });
+    };
+    const id = window.setInterval(tick, 5_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [authed, userId, conversationId]);
 
   // Auto-resize the composer as the user types.
   useEffect(() => {
