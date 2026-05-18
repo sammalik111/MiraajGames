@@ -95,18 +95,15 @@ function readCurrent(): { theme: ThemeKey; mode: Mode } {
   return { theme, mode };
 }
 
+// Apply directly to the DOM so the UI updates instantly. Persistence is
+// DB-only via persist() below — every page load re-reads from the DB
+// (see RootLayout), so we don't mirror to localStorage anymore.
 function applyTheme(t: ThemeKey) {
   document.documentElement.setAttribute("data-theme", t);
-  try {
-    localStorage.setItem("theme", t);
-  } catch {}
 }
 
 function applyMode(m: Mode) {
   document.documentElement.classList.toggle("dark", m === "dark");
-  try {
-    localStorage.setItem("mode", m);
-  } catch {}
 }
 
 interface PickerProps {
@@ -133,36 +130,11 @@ export default function ThemePicker({
     setMounted(true);
   }, []);
 
-  // Once authed, fetch the DB-backed preference. If it differs from
-  // what's currently applied (localStorage cache), apply the DB value —
-  // it's the source of truth for cross-device consistency.
-  useEffect(() => {
-    if (!authed) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/theme", { cache: "no-store" });
-        if (!res.ok || cancelled) return;
-        const data = (await res.json()) as {
-          theme: string | null;
-          mode: string | null;
-        };
-        if (data.theme && isThemeKey(data.theme)) {
-          setTheme(data.theme);
-          applyTheme(data.theme);
-        }
-        if (data.mode === "light" || data.mode === "dark") {
-          setMode(data.mode);
-          applyMode(data.mode);
-        }
-      } catch {
-        /* network blip — keep the localStorage value */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [authed]);
+  // (No post-mount DB fetch needed — the root layout reads the user's
+  // preferred theme/mode server-side and bakes them into the initial
+  // <html> attributes, so readCurrent() above already has the correct
+  // values. The picker still writes through to the DB on change via
+  // persist() below.)
 
   // Outside-click + Escape close the popover variant.
   useEffect(() => {

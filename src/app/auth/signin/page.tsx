@@ -28,7 +28,12 @@ export default function SignIn() {
         return;
       }
 
-      router.push("/");
+      // Hard reload instead of router.push so the root layout re-runs
+      // server-side and picks up the user's saved theme/mode from the
+      // DB. A soft client nav keeps the layout mounted, so the data-theme
+      // attribute on <html> would stay at whatever the logged-out render
+      // produced (cyberpunk/light).
+      window.location.href = "/";
     } catch (err) {
       setError("An error occurred. Please try again.");
     } finally {

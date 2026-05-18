@@ -7,7 +7,16 @@ export const games = [
     theme: "platformer",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    // Leaderboard semantics:
+    //   "highScore" — rank by max single-run score, DESC (Tetris, Flappy, etc.)
+    //   "bestTime"  — rank by min single-run score (interpreted as time), ASC (Sudoku, Minesweeper)
+    //   "none"      — no public leaderboard. Used for win/lose games where a
+    //                 ranked list doesn't make sense: vs-CPU singleplayer
+    //                 (Chess, TTT, Pool, Battleship) and the true multiplayer
+    //                 games (which are just join/leave). The leaderboard UI
+    //                 should skip rendering for these.
+    leaderboardType: "highScore"
   },
   {
     id: 2,
@@ -17,7 +26,9 @@ export const games = [
     theme: "pool",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    // vs CPU — win/lose only, no leaderboard
+    leaderboardType: "none"
   },
   {
     id: 3,
@@ -27,7 +38,8 @@ export const games = [
     theme: "shooter",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    leaderboardType: "highScore"
   },
   {
     id: 4,
@@ -38,6 +50,8 @@ export const games = [
     version: 1,
     grouping: "singleplayer",
     sortedOrder: "DESC",
+    // vs CPU — win/lose only, no leaderboard
+    leaderboardType: "none"
   },
   {
     id: 5,
@@ -47,7 +61,9 @@ export const games = [
     theme: "puzzle",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    // vs CPU — win/lose only, no leaderboard
+    leaderboardType: "none"
   },
   {
     id: 6,
@@ -58,7 +74,8 @@ export const games = [
     version: 1,
     grouping: "singleplayer",
     // Score = total moves to clear all levels. Lower is better.
-    sortedOrder: "ASC"
+    sortedOrder: "ASC",
+    leaderboardType: "bestTime"
   },
   {
     id: 7,
@@ -68,7 +85,8 @@ export const games = [
     theme: "shooter",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    leaderboardType: "highScore"
   },
   {
     id: 8,
@@ -78,7 +96,8 @@ export const games = [
     theme: "arcade",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    leaderboardType: "highScore"
   },
   {
     id: 9,
@@ -88,7 +107,8 @@ export const games = [
     theme: "puzzle",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    leaderboardType: "highScore"
   },
   {
     id: 10,
@@ -99,7 +119,8 @@ export const games = [
     version: 1,
     grouping: "singleplayer",
     // Score = seconds to complete all puzzles. Lower is better.
-    sortedOrder: "ASC"
+    sortedOrder: "ASC",
+    leaderboardType: "bestTime"
   },
   {
     id: 11,
@@ -109,7 +130,9 @@ export const games = [
     theme: "strategy",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    // vs CPU — win/lose only, no leaderboard
+    leaderboardType: "none"
   },
   {
     id: 12,
@@ -121,7 +144,8 @@ export const games = [
     grouping: "singleplayer",
     // Score = seconds to clear board. Lower is better. Losses submit a high
     // sentinel so completed runs always rank above failed ones.
-    sortedOrder: "ASC"
+    sortedOrder: "ASC",
+    leaderboardType: "bestTime"
   },
   {
     id: 13,
@@ -132,7 +156,8 @@ export const games = [
     version: 1,
     grouping: "singleplayer",
     // Score = seconds to fill the grid. Lower is better.
-    sortedOrder: "ASC"
+    sortedOrder: "ASC",
+    leaderboardType: "bestTime"
   },
   {
     id: 14,
@@ -142,7 +167,8 @@ export const games = [
     theme: "arcade",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    leaderboardType: "highScore"
   },
   {
     id: 15,
@@ -152,7 +178,8 @@ export const games = [
     theme: "arcade",
     version: 1,
     grouping: "singleplayer",
-    sortedOrder: "DESC" 
+    sortedOrder: "DESC",
+    leaderboardType: "highScore"
   },
   {
     id: 16,
@@ -162,7 +189,9 @@ export const games = [
     theme: "puzzle",
     version: 1,
     grouping: "multiplayer",
-    sortedOrder: "DESC"
+    sortedOrder: "DESC",
+    // True MP — join/leave only, no leaderboard
+    leaderboardType: "none"
   },
   {
     id: 17,
@@ -172,7 +201,8 @@ export const games = [
     theme: "strategy",
     version: 1,
     grouping: "multiplayer",
-    sortedOrder: "DESC"
+    sortedOrder: "DESC",
+    leaderboardType: "none"
   },
   {
     id: 18,
@@ -182,7 +212,8 @@ export const games = [
     theme: "pool",
     version: 1,
     grouping: "multiplayer",
-    sortedOrder: "DESC"
+    sortedOrder: "DESC",
+    leaderboardType: "none"
   },
 
 ];

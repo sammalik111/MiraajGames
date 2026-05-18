@@ -33,8 +33,17 @@ export default function GameOverPanel({ gameId, score, onRetry }: Props) {
 
   const game = games.find((g) => g.id === gameId);
   const isDesc = game?.sortedOrder === "DESC";
+  // Win/lose games (vs CPU, true MP) opt out of leaderboards entirely —
+  // see leaderboardType in gameData. We still show the overlay (score +
+  // retry), just skip the rankings panel and replace the numeric score
+  // with a Win/Loss readout since score for these is just 0 or 1.
+  const hasLeaderboard = game?.leaderboardType !== "none";
 
   useEffect(() => {
+    if (!hasLeaderboard) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     const fetchBoard = async () => {
       await new Promise((r) => setTimeout(r, 250));
@@ -51,7 +60,7 @@ export default function GameOverPanel({ gameId, score, onRetry }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [gameId, score]);
+  }, [gameId, score, hasLeaderboard]);
 
   const myRow = entries?.find((e) => e.userId === userId);
   const inTop10 = !!myRow;
@@ -89,17 +98,35 @@ export default function GameOverPanel({ gameId, score, onRetry }: Props) {
           )}
         </div>
 
-        {/* Score */}
+        {/* Score (or Win/Loss readout for non-leaderboard games) */}
         <div className="px-5 pt-5 pb-4 text-center border-b border-[color:var(--border)]">
-          <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)]">
-            {beatTop ? "New high score" : "Final score"}
-          </p>
-          <p className="font-display font-black text-5xl mt-1 leading-none tabular-nums text-[color:var(--fg)]">
-            {score.toLocaleString()}
-          </p>
+          {hasLeaderboard ? (
+            <>
+              <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)]">
+                {beatTop ? "New high score" : "Final score"}
+              </p>
+              <p className="font-display font-black text-5xl mt-1 leading-none tabular-nums text-[color:var(--fg)]">
+                {score.toLocaleString()}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)]">
+                Result
+              </p>
+              <p
+                className={`font-display font-black text-5xl mt-1 leading-none ${
+                  score > 0 ? "text-[color:var(--neon-cyan)]" : "text-[color:var(--fg)]"
+                }`}
+              >
+                {score > 0 ? "Victory" : "Defeat"}
+              </p>
+            </>
+          )}
         </div>
 
-        {/* Leaderboard */}
+        {/* Leaderboard — only games with a meaningful ranking */}
+        {hasLeaderboard && (
         <div className="px-4 pt-3 pb-4">
           <div className="flex items-center justify-between mb-2 px-1">
             <span className="font-mono text-[9px] uppercase tracking-[0.3em] text-[color:var(--fg-muted)]">
@@ -161,6 +188,7 @@ export default function GameOverPanel({ gameId, score, onRetry }: Props) {
             </p>
           )}
         </div>
+        )}
 
         {/* Action */}
         <div className="px-4 pb-4">

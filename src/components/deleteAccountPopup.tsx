@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 
 
@@ -10,7 +9,6 @@ interface Props {
 }
 
 export default function DeleteAccountPopup({ onClose }: Props) {
-  const router = useRouter();
   const [inputConfirmation, setInputConfirmation] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -39,7 +37,10 @@ export default function DeleteAccountPopup({ onClose }: Props) {
         if (success) {
             onClose();
             await signOut({ redirect: false });
-            router.push(`/`);
+            // Hard reload so the root layout re-runs and renders the
+            // default cyberpunk/light theme (instead of holding the
+            // logged-in user's saved theme via the cached layout).
+            window.location.href = "/";
         } else {
             setError("Failed to delete account");
         }
