@@ -17,6 +17,9 @@ import SodukuGame from "./sodukuGame";
 import BattleshipGame from "./battleshipGame";
 import FlappyBirdGame from "./FlappyBirdGame";
 import CrossyRoadGame from "./CrossyRoadGame";
+import WordleGame from "./WordleGame";
+import SkyJumpGame from "./SkyJumpGame";
+import SnakeGame from "./SnakeGame";
 
 interface Props {
   gameId: number;
@@ -97,6 +100,18 @@ export default function GameRunner({ gameId }: Props) {
     case 15:
       return shell(gameId, ({ onGameEnd, runKey }) => (
         <CrossyRoadGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 19:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <WordleGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 20:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <SkyJumpGame key={runKey} onGameEnd={onGameEnd} />
+      ));
+    case 21:
+      return shell(gameId, ({ onGameEnd, runKey }) => (
+        <SnakeGame key={runKey} onGameEnd={onGameEnd} />
       ));
     default:
       return (

@@ -1,6 +1,6 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { db, bestScoresForGame, users } from "@/db";
+import { db, bestScoresForGame, gameScores, users } from "@/db";
 import { displayName } from "@/db/displayName";
 import { games } from "@/data/gameData";
 
@@ -31,29 +31,59 @@ export async function GET(
 
     const gameVersion = game.version ?? 1;
     const isDesc = game.sortedOrder === "DESC";
-    const scoreOrder = isDesc
-      ? desc(bestScoresForGame.score)
-      : asc(bestScoresForGame.score);
 
-    const rows = await db
-      .select({
-        userId: bestScoresForGame.userId,
-        score: bestScoresForGame.score,
-        achievedAt: bestScoresForGame.achievedAt,
-        name: displayName,
-        avatarUrl: users.avatarUrl,
-      })
-      .from(bestScoresForGame)
-      .leftJoin(users, eq(users.id, bestScoresForGame.userId))
-      .where(
-        and(
-          eq(bestScoresForGame.gameId, gameId),
-          eq(bestScoresForGame.gameVersion, gameVersion),
-        ),
-      )
-      // Score first (best at top), then earliest achievedAt as the tiebreaker.
-      .orderBy(scoreOrder, asc(bestScoresForGame.achievedAt))
-      .limit(limit);
+    // Daily-reset games (e.g. Wordle) pull from the audit log filtered to
+    // today's UTC day rather than the all-time best-score table. Each
+    // user already plays at most once per day, so no per-user dedupe needed.
+    let rows;
+    if (game.dailyReset) {
+      const now = new Date();
+      const dayStart = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      );
+      const scoreOrder = isDesc ? desc(gameScores.score) : asc(gameScores.score);
+      rows = await db
+        .select({
+          userId: gameScores.userId,
+          score: gameScores.score,
+          achievedAt: gameScores.achievedAt,
+          name: displayName,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(gameScores)
+        .leftJoin(users, eq(users.id, gameScores.userId))
+        .where(
+          and(
+            eq(gameScores.gameId, gameId),
+            eq(gameScores.gameVersion, gameVersion),
+            gte(gameScores.achievedAt, dayStart),
+          ),
+        )
+        .orderBy(scoreOrder, asc(gameScores.achievedAt))
+        .limit(limit);
+    } else {
+      const scoreOrder = isDesc
+        ? desc(bestScoresForGame.score)
+        : asc(bestScoresForGame.score);
+      rows = await db
+        .select({
+          userId: bestScoresForGame.userId,
+          score: bestScoresForGame.score,
+          achievedAt: bestScoresForGame.achievedAt,
+          name: displayName,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(bestScoresForGame)
+        .leftJoin(users, eq(users.id, bestScoresForGame.userId))
+        .where(
+          and(
+            eq(bestScoresForGame.gameId, gameId),
+            eq(bestScoresForGame.gameVersion, gameVersion),
+          ),
+        )
+        .orderBy(scoreOrder, asc(bestScoresForGame.achievedAt))
+        .limit(limit);
+    }
 
     const entries = rows.map((r, i) => ({
       rank: i + 1,

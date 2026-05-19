@@ -26,7 +26,7 @@ interface Props {
 //
 // 250ms delay before fetching so the just-submitted score has settled in
 // the DB. Invisible to humans, plenty for a Neon write.
-export default function GameOverPanel({ gameId, score, onRetry }: Props) {
+export default function GameOverPanel({ gameId, score, metadata, onRetry }: Props) {
   const { userId } = useAuth();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,6 +122,16 @@ export default function GameOverPanel({ gameId, score, onRetry }: Props) {
                 {score > 0 ? "Victory" : "Defeat"}
               </p>
             </>
+          )}
+          {/* Optional reveal — e.g. Wordle answer. Any game can pass
+              metadata.target to surface a "the answer was X" line here. */}
+          {typeof metadata?.target === "string" && (
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--fg-muted)]">
+              Answer ·{" "}
+              <span className="font-display font-black text-base tracking-[0.2em] text-[color:var(--neon-cyan)]">
+                {(metadata.target as string).toUpperCase()}
+              </span>
+            </p>
           )}
         </div>
 

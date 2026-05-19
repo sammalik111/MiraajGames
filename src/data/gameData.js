@@ -215,5 +215,44 @@ export const games = [
     sortedOrder: "DESC",
     leaderboardType: "none"
   },
+  {
+    id: 19,
+    title: "Wordle",
+    description: "Guess the 5-letter word in 6 tries. Green = right spot, yellow = wrong spot.",
+    creator: "Miraaj Games",
+    theme: "puzzle",
+    version: 1,
+    grouping: "singleplayer",
+    // Score = number of guesses used. Lower is better. Losses submit a sentinel
+    // (7) so completed wins always rank above failed runs.
+    sortedOrder: "ASC",
+    leaderboardType: "bestTime",
+    // Daily-reset: leaderboard shows only today's UTC-day scores. Pairs with
+    // the daily play lock — each user has at most one row per day, so the
+    // board is naturally a "who solved today's word fastest" snapshot.
+    dailyReset: true
+  },
+  {
+    id: 20,
+    title: "Sky Jump",
+    description: "Bounce up a tower of platforms — boost off gold, dodge red, time the cyan movers.",
+    creator: "Miraaj Games",
+    theme: "arcade",
+    version: 1,
+    grouping: "singleplayer",
+    sortedOrder: "DESC",
+    leaderboardType: "highScore"
+  },
+  {
+    id: 21,
+    title: "Snake",
+    description: "Eat to grow, don't bite yourself. Speed climbs with length.",
+    creator: "Miraaj Games",
+    theme: "arcade",
+    version: 1,
+    grouping: "singleplayer",
+    sortedOrder: "DESC",
+    leaderboardType: "highScore"
+  },
 
 ];
